@@ -16,11 +16,14 @@ package dev.dworks.apps.anexplorer;
  * limitations under the License.
  */
 
+import android.content.ContentProviderClient;
 import android.content.ContentResolver;
 import android.content.DialogInterface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.design.widget.Snackbar;
+import android.support.v4.content.ContextCompat;
+import android.support.v4.provider.DocumentFile;
 import android.support.v7.app.AlertDialog;
 import android.text.Editable;
 import android.text.TextUtils;
@@ -29,6 +32,9 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
+
+import com.github.mjdev.libaums.fs.UsbFile;
+import com.github.mjdev.libaums.fs.UsbFileOutputStream;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -41,13 +47,20 @@ import java.io.OutputStream;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import dev.dworks.apps.anexplorer.misc.AnalyticsManager;
 import dev.dworks.apps.anexplorer.misc.AsyncTask;
+import dev.dworks.apps.anexplorer.misc.ContentProviderClientCompat;
+import dev.dworks.apps.anexplorer.misc.CrashReportingManager;
 import dev.dworks.apps.anexplorer.misc.FileUtils;
 import dev.dworks.apps.anexplorer.misc.Utils;
+import dev.dworks.apps.anexplorer.model.DocumentsContract;
 import dev.dworks.apps.anexplorer.provider.RootedStorageProvider;
+import dev.dworks.apps.anexplorer.provider.UsbStorageProvider;
 import dev.dworks.apps.anexplorer.root.RootCommands;
 
 public class NoteActivity extends ActionBarActivity implements TextWatcher {
+
+    public static final String TAG = "TextEditor";
 
     private EditText mInput;
     private String mOriginal;
@@ -64,6 +77,11 @@ public class NoteActivity extends ActionBarActivity implements TextWatcher {
 
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getName();
+    }
+
+    @Override
+    public String getTag() {
+        return TAG;
     }
 
     @Override
@@ -109,7 +127,8 @@ public class NoteActivity extends ActionBarActivity implements TextWatcher {
                             finish();
                         }
                     });
-            builder.create().show();
+            DialogFragment.showThemedDialog(builder);
+
         } else {
             finish();
         }
@@ -130,6 +149,7 @@ public class NoteActivity extends ActionBarActivity implements TextWatcher {
                 break;
             case R.id.menu_save:
                 save(false);
+                AnalyticsManager.logEvent("text_save");
                 break;
             case R.id.menu_revert:
                 setSaveProgress(true);
@@ -139,6 +159,7 @@ public class NoteActivity extends ActionBarActivity implements TextWatcher {
                     showError("Unable to Load file");
                 }
                 setSaveProgress(false);
+                AnalyticsManager.logEvent("text_revert");
                 break;
         }
         return super.onOptionsItemSelected(item);
@@ -160,7 +181,7 @@ public class NoteActivity extends ActionBarActivity implements TextWatcher {
             @Override
             public void run() {
                 mModified = !mInput.getText().toString().equals(mOriginal);
-                invalidateOptionsMenu();
+                supportInvalidateOptionsMenu();
             }
         }, 250);
     }
@@ -207,14 +228,14 @@ public class NoteActivity extends ActionBarActivity implements TextWatcher {
                 br.close();
                 return text;
             }catch (Exception e){
-                e.printStackTrace();
                 errorMsg = e.getLocalizedMessage();
+                CrashReportingManager.logException(e);
             }finally {
                 if(null != is){
                     try {
                         is.close();
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        CrashReportingManager.logException(e);
                     }
                 }
             }
@@ -268,20 +289,38 @@ public class NoteActivity extends ActionBarActivity implements TextWatcher {
                     errorMsg = "Unable to save file";
                 }
                 return null;
-            }
-            OutputStream os = getOutStream(uri);
-            if(null == os){
-                errorMsg = "Unable to save file";
+            } else if(authority.equalsIgnoreCase(UsbStorageProvider.AUTHORITY)){
+                final ContentProviderClient usbclient = ContentProviderClientCompat
+                        .acquireUnstableContentProviderClient(
+                                NoteActivity.this.getContentResolver(),
+                                UsbStorageProvider.AUTHORITY);
+                String docId = DocumentsContract.getDocumentId(uri);
+                try {
+                    UsbFile file = ((UsbStorageProvider) usbclient.getLocalContentProvider())
+                            .getFileForDocId(docId);
+                    UsbFileOutputStream ufos = new UsbFileOutputStream(file);
+                    ufos.write(mInput.getText().toString().getBytes("UTF-8"));
+                    ufos.close();
+                } catch (IOException e) {
+                    errorMsg = e.getLocalizedMessage();
+                    CrashReportingManager.logException(e);
+                }
+                return null;
+            } else {
+                OutputStream os = getOutStream(uri);
+                if (null == os) {
+                    errorMsg = "Unable to save file";
+                    return null;
+                }
+                try {
+                    os.write(mInput.getText().toString().getBytes("UTF-8"));
+                    os.close();
+                } catch (IOException e) {
+                    errorMsg = e.getLocalizedMessage();
+                    CrashReportingManager.logException(e);
+                }
                 return null;
             }
-            try {
-                os.write(mInput.getText().toString().getBytes("UTF-8"));
-                os.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-                errorMsg = e.getLocalizedMessage();
-            }
-            return null;
         }
 
         @Override
@@ -301,7 +340,7 @@ public class NoteActivity extends ActionBarActivity implements TextWatcher {
             } else {
                 mOriginal = mInput.getText().toString();
                 mModified = false;
-                invalidateOptionsMenu();
+                supportInvalidateOptionsMenu();
             }
         }
     }
@@ -326,7 +365,7 @@ public class NoteActivity extends ActionBarActivity implements TextWatcher {
             try {
                 return getContentResolver().openInputStream(uri);
             } catch (Exception e) {
-                e.printStackTrace();
+                CrashReportingManager.logException(e);
             }
         } else if (scheme.startsWith(ContentResolver.SCHEME_FILE)) {
             File f = new File(uri.getPath());
@@ -334,7 +373,7 @@ public class NoteActivity extends ActionBarActivity implements TextWatcher {
                 try {
                     return new FileInputStream(f);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    CrashReportingManager.logException(e);
                 }
             }
         }
@@ -345,9 +384,12 @@ public class NoteActivity extends ActionBarActivity implements TextWatcher {
         String scheme = uri.getScheme();
         if (scheme.startsWith(ContentResolver.SCHEME_CONTENT)) {
             try {
-                return getContentResolver().openOutputStream(uri);
+                DocumentFile documentFile = DocumentsApplication.getSAFManager(
+                        getApplicationContext()).getDocumentFile(uri);
+                Uri finalUri = null == documentFile ? uri : documentFile.getUri();
+                return getContentResolver().openOutputStream(finalUri);
             } catch (Exception e) {
-                e.printStackTrace();
+                CrashReportingManager.logException(e);
             }
         } else if (scheme.startsWith(ContentResolver.SCHEME_FILE)) {
             File f = new File(uri.getPath());
@@ -355,7 +397,7 @@ public class NoteActivity extends ActionBarActivity implements TextWatcher {
                 try {
                     return new FileOutputStream(f);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    CrashReportingManager.logException(e);
                 }
             }
         }
@@ -408,6 +450,6 @@ public class NoteActivity extends ActionBarActivity implements TextWatcher {
                 snackbar.dismiss();
             }
         })
-                .setActionTextColor(getResources().getColor(R.color.button_text_color_yellow)).show();
+                .setActionTextColor(ContextCompat.getColor(this, R.color.button_text_color_yellow)).show();
     }
 }

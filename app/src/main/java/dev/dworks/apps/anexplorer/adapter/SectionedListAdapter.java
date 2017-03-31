@@ -17,25 +17,23 @@
 
 package dev.dworks.apps.anexplorer.adapter;
 
-import java.util.ArrayList;
-
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.ListAdapter;
 
-import com.google.common.collect.Lists;
+import java.util.ArrayList;
 
 /**
  * Adapter that combines multiple adapters as sections, asking each section to
  * provide a header, and correctly handling item types across child adapters.
  */
 public class SectionedListAdapter extends BaseAdapter {
-    private ArrayList<SectionAdapter> mSections = Lists.newArrayList();
+    private ArrayList<SectionAdapter> mSections = new ArrayList<>();
 
     public interface SectionAdapter extends ListAdapter {
-        public View getHeaderView(View convertView, ViewGroup parent);
+        View getHeaderView(View convertView, ViewGroup parent);
     }
 
     public void clearSections() {

@@ -26,26 +26,23 @@ import android.graphics.Point;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
+import android.os.CancellationSignal;
 import android.os.Environment;
 import android.os.FileObserver;
 import android.os.ParcelFileDescriptor;
+import android.support.v4.util.ArrayMap;
 import android.util.Log;
 import android.webkit.MimeTypeMap;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Map;
 
 import dev.dworks.apps.anexplorer.BuildConfig;
 import dev.dworks.apps.anexplorer.R;
 import dev.dworks.apps.anexplorer.cursor.MatrixCursor;
 import dev.dworks.apps.anexplorer.cursor.MatrixCursor.RowBuilder;
-import dev.dworks.apps.anexplorer.misc.CancellationSignal;
 import dev.dworks.apps.anexplorer.misc.FileUtils;
 import dev.dworks.apps.anexplorer.misc.StorageUtils;
 import dev.dworks.apps.anexplorer.misc.StorageVolume;
@@ -54,6 +51,8 @@ import dev.dworks.apps.anexplorer.model.DocumentsContract;
 import dev.dworks.apps.anexplorer.model.DocumentsContract.Document;
 import dev.dworks.apps.anexplorer.model.DocumentsContract.Root;
 import dev.dworks.apps.anexplorer.model.GuardedBy;
+
+import static dev.dworks.apps.anexplorer.misc.MimeTypes.BASIC_MIME_TYPE;
 
 @SuppressLint("DefaultLocale")
 public class HeatMapProvider extends StorageProvider {
@@ -67,7 +66,7 @@ public class HeatMapProvider extends StorageProvider {
 
     private static final String[] DEFAULT_ROOT_PROJECTION = new String[] {
             Root.COLUMN_ROOT_ID, Root.COLUMN_FLAGS, Root.COLUMN_ICON, Root.COLUMN_TITLE,
-            Root.COLUMN_DOCUMENT_ID, Root.COLUMN_AVAILABLE_BYTES, Root.COLUMN_TOTAL_BYTES,
+            Root.COLUMN_DOCUMENT_ID, Root.COLUMN_AVAILABLE_BYTES, Root.COLUMN_CAPACITY_BYTES,
     };
 
     private static final String[] DEFAULT_DOCUMENT_PROJECTION = new String[] {
@@ -90,21 +89,17 @@ public class HeatMapProvider extends StorageProvider {
     private final Object mRootsLock = new Object();
 
     @GuardedBy("mRootsLock")
-    private ArrayList<RootInfo> mRoots;
+    private ArrayList<RootInfo> mRoots = new ArrayList<>();
     @GuardedBy("mRootsLock")
-    private HashMap<String, RootInfo> mIdToRoot;
+    private ArrayMap<String, RootInfo> mIdToRoot = new ArrayMap<>();
     @GuardedBy("mRootsLock")
-    private HashMap<String, File> mIdToPath;
+    private ArrayMap<String, File> mIdToPath = new ArrayMap<>();
 
     @GuardedBy("mObservers")
-    private Map<File, DirectoryObserver> mObservers = Maps.newHashMap();
+    private ArrayMap<File, DirectoryObserver> mObservers = new ArrayMap<>();
 
     @Override
     public boolean onCreate() {
-        mRoots = Lists.newArrayList();
-        mIdToRoot = Maps.newHashMap();
-        mIdToPath = Maps.newHashMap();
-
         updateVolumes();
         return true;
     }
@@ -132,10 +127,10 @@ public class HeatMapProvider extends StorageProvider {
 	            if (!mounted) continue;
             }
             final String rootId;
-            if (volume.isPrimary && volume.isEmulated) {
+            if (volume.isPrimary() && volume.isEmulated()) {
                 rootId = ROOT_ID_PRIMARY_EMULATED;
             } else if (volume.getUuid() != null) {
-                rootId = ROOT_ID_SECONDARY + volume.getLabel();
+                rootId = ROOT_ID_SECONDARY + volume.getUserLabel();
             } else {
                 Log.d(TAG, "Missing UUID for " + volume.getPath() + "; skipping");
                 continue;
@@ -296,7 +291,7 @@ public class HeatMapProvider extends StorageProvider {
         row.add(Root.COLUMN_TITLE, getContext().getString(R.string.root_heat_map));
         row.add(Root.COLUMN_DOCUMENT_ID, ROOT_ID_HEAT_MAP);
         row.add(Root.COLUMN_AVAILABLE_BYTES, -1);
-        row.add(Root.COLUMN_TOTAL_BYTES, -1);
+        row.add(Root.COLUMN_CAPACITY_BYTES, -1);
 
         return result;
     }
@@ -418,7 +413,7 @@ public class HeatMapProvider extends StorageProvider {
             }
         }
 
-        return "application/octet-stream";
+        return BASIC_MIME_TYPE;
     }
 
     private void startObserving(File file, Uri notifyUri) {

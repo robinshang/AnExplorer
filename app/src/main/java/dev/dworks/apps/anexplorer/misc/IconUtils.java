@@ -24,20 +24,22 @@ import android.content.pm.ProviderInfo;
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
+import android.support.v4.content.ContextCompat;
+import android.support.v4.graphics.drawable.DrawableCompat;
+import android.support.v4.util.ArrayMap;
 import android.util.TypedValue;
-
-import com.google.common.collect.Maps;
-
-import java.util.HashMap;
 
 import dev.dworks.apps.anexplorer.DocumentsActivity;
 import dev.dworks.apps.anexplorer.R;
 import dev.dworks.apps.anexplorer.model.DocumentsContract.Document;
 import dev.dworks.apps.anexplorer.provider.MediaDocumentsProvider;
 
+import static dev.dworks.apps.anexplorer.network.NetworkConnection.CLIENT;
+import static dev.dworks.apps.anexplorer.network.NetworkConnection.SERVER;
+
 public class IconUtils {
 
-    private static HashMap<String, Integer> sMimeIcons = Maps.newHashMap();
+    private static ArrayMap<String, Integer> sMimeIcons = new ArrayMap<>();
 
     private static void add(String mimeType, int resId) {
         if (sMimeIcons.put(mimeType, resId) != null) {
@@ -102,7 +104,7 @@ public class IconUtils {
         add("application/x-javascript", icon);
 
         // Compressed
-        icon = R.drawable.ic_doc_compressed;
+        icon = R.drawable.ic_doc_archive;
         add("application/mac-binhex40", icon);
         add("application/rar", icon);
         add("application/zip", icon);
@@ -170,7 +172,7 @@ public class IconUtils {
         add("application/x-kspread", icon);
 
         // Text
-        icon = R.drawable.ic_doc_text;
+        icon = R.drawable.ic_doc_document;
         add("application/vnd.oasis.opendocument.text", icon);
         add("application/vnd.oasis.opendocument.text-master", icon);
         add("application/vnd.oasis.opendocument.text-template", icon);
@@ -208,7 +210,7 @@ public class IconUtils {
         add("application/vnd.openxmlformats-officedocument.presentationml.slideshow", icon);
 
         //folder
-        icon = R.drawable.ic_root_folder;
+        icon = R.drawable.ic_doc_folder;
         add(Document.MIME_TYPE_HIDDEN, icon);
     }
 
@@ -221,7 +223,7 @@ public class IconUtils {
                     return pm.getDrawable(info.packageName, icon, info.applicationInfo);
                 }
             } else {
-                return context.getResources().getDrawable(icon);
+                return ContextCompat.getDrawable(context, icon);
             }
         }
         return null;
@@ -239,35 +241,34 @@ public class IconUtils {
 					return pm.getApplicationIcon(packageInfo.applicationInfo);
 				}
 			} catch (Exception e) {
-				return context.getResources().getDrawable(icon);
+				return ContextCompat.getDrawable(context, icon);
 			}
         } else {
-            return context.getResources().getDrawable(icon);
+            return ContextCompat.getDrawable(context, icon);
         }
         return null;
     }
 
     public static Drawable loadMimeIcon(
             Context context, String mimeType, String authority, String docId, int mode) {
-        final Resources res = context.getResources();
 
         if (Document.MIME_TYPE_DIR.equals(mimeType)) {
             if (MediaDocumentsProvider.AUTHORITY.equals(authority)) {
                 if(docId.startsWith(MediaDocumentsProvider.TYPE_ALBUM)){
-                    return res.getDrawable(R.drawable.ic_doc_album);
+                    return ContextCompat.getDrawable(context, R.drawable.ic_doc_album);
                 }
                 else if(docId.startsWith(MediaDocumentsProvider.TYPE_IMAGES_BUCKET)){
-                    return res.getDrawable(R.drawable.ic_doc_folder);
+                    return ContextCompat.getDrawable(context, R.drawable.ic_doc_folder);
                 }
                 else if(docId.startsWith(MediaDocumentsProvider.TYPE_VIDEOS_BUCKET)){
-                    return res.getDrawable(R.drawable.ic_doc_folder);
+                    return ContextCompat.getDrawable(context, R.drawable.ic_doc_folder);
                 }
             }
 
             if (mode == DocumentsActivity.State.MODE_GRID) {
-                return res.getDrawable(R.drawable.ic_grid_folder);
+                return ContextCompat.getDrawable(context, R.drawable.ic_grid_folder);
             } else {
-                return res.getDrawable(R.drawable.ic_doc_folder);
+                return ContextCompat.getDrawable(context, R.drawable.ic_doc_folder);
             }
         }
 
@@ -275,40 +276,49 @@ public class IconUtils {
     }
 
     public static Drawable loadMimeIcon(Context context, String mimeType) {
-        final Resources res = context.getResources();
 
         if (Document.MIME_TYPE_DIR.equals(mimeType)) {
             // TODO: return a mipmap, since this is used for grid
-            return res.getDrawable(R.drawable.ic_root_folder);
+            return ContextCompat.getDrawable(context, R.drawable.ic_doc_folder);
         }
 
         // Look for exact match first
         Integer resId = sMimeIcons.get(mimeType);
         if (resId != null) {
-            return res.getDrawable(resId);
+            return getDrawable(context, resId);
         }
 
         if (mimeType == null) {
-            // TODO: generic icon?
-            return null;
+            return ContextCompat.getDrawable(context, R.drawable.ic_doc_generic);
         }
 
         // Otherwise look for partial match
         final String typeOnly = mimeType.split("/")[0];
         if ("audio".equals(typeOnly)) {
-            return res.getDrawable(R.drawable.ic_doc_audio);
+            return ContextCompat.getDrawable(context, R.drawable.ic_doc_audio);
         } else if ("image".equals(typeOnly)) {
-            return res.getDrawable(R.drawable.ic_doc_image);
+            return ContextCompat.getDrawable(context, R.drawable.ic_doc_image);
         } else if ("text".equals(typeOnly)) {
-            return res.getDrawable(R.drawable.ic_doc_text);
+            return ContextCompat.getDrawable(context, R.drawable.ic_doc_text);
         } else if ("video".equals(typeOnly)) {
-            return res.getDrawable(R.drawable.ic_doc_video);
+            return ContextCompat.getDrawable(context, R.drawable.ic_doc_video);
         } else {
-            return res.getDrawable(R.drawable.ic_doc_generic);
+            return ContextCompat.getDrawable(context, R.drawable.ic_doc_generic);
+        }
+    }
+
+    public static Drawable loadSchemeIcon(Context context, String type) {
+
+        if (SERVER.equals(type)) {
+            return ContextCompat.getDrawable(context, R.drawable.ic_connection_server);
+        } else if (CLIENT.equals(type)) {
+            return ContextCompat.getDrawable(context, R.drawable.ic_connection_network);
+        } else {
+            return ContextCompat.getDrawable(context, R.drawable.ic_connection_server);
         }
     }
     
-    public static String getTypeNameFromMimeType(Context context, String mimeType) {
+    public static String getTypeNameFromMimeType(String mimeType) {
         int resource = 0;
         if (Document.MIME_TYPE_DIR.equals(mimeType)) {
             return "folder";
@@ -330,7 +340,7 @@ public class IconUtils {
                 return "certificate";
             case R.drawable.ic_doc_codes:
                 return "source code";
-            case R.drawable.ic_doc_compressed:
+            case R.drawable.ic_doc_archive:
                 return "compressed";
             case R.drawable.ic_doc_contact:
                 return "contact";
@@ -371,71 +381,32 @@ public class IconUtils {
         return "file";
     }
 
-    public static boolean isMimeSpecial(String mimeType) {
-        if (Document.MIME_TYPE_DIR.equals(mimeType)) {
-            return false;
-        }
-
-        if (mimeType == null) {
-            // TODO: generic icon?
-            return false;
-        }
-
-        // Otherwise look for partial match
-        final String typeOnly = mimeType.split("/")[0];
-        if ("audio".equals(typeOnly)) {
-            return true;
-        } else if ("image".equals(typeOnly)) {
-            return true;
-        } else if ("video".equals(typeOnly)) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    public static int getMimeColor(Context context, String mimeType) {
-        final Resources res = context.getResources();
-
-        if (Document.MIME_TYPE_DIR.equals(mimeType)) {
-            return res.getColor(R.color.item_doc_folder);
-        }
-
-        if (mimeType == null) {
-            // TODO: generic icon?
-            return res.getColor(R.color.item_doc_generic);
-        }
-
-        if("application/vnd.android.package-archive".equals(mimeType)){
-            return res.getColor(R.color.item_doc_apk);
-        }
-        // Otherwise look for partial match
-        final String typeOnly = mimeType.split("/")[0];
-        if ("audio".equals(typeOnly)) {
-            return res.getColor(R.color.item_doc_audio);
-        } else if ("image".equals(typeOnly)) {
-            return res.getColor(R.color.item_doc_image);
-        } else if ("video".equals(typeOnly)) {
-            return res.getColor(R.color.item_doc_video);
-        } else {
-            return res.getColor(R.color.item_doc_file);
-        }
-    }
-
-
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-    public static Drawable applyTintColor(Context context, int drawableId, int tintColorId) {
-        final Drawable icon = context.getResources().getDrawable(drawableId);
+    public static Drawable applyTintList(Context context, int drawableId, int tintColorId) {
+        final Drawable icon = getDrawable(context, drawableId);
         icon.mutate();
-        if(Utils.hasLollipop()) {
-            icon.setTintList(context.getResources().getColorStateList(tintColorId));
-        }
+        DrawableCompat.setTintList(DrawableCompat.wrap(icon), ContextCompat.getColorStateList(context, tintColorId));
+        return icon;
+    }
+
+    public static Drawable applyTint(Context context, int drawableId, int tintColorId) {
+        final Drawable icon = getDrawable(context, drawableId);
+        icon.mutate();
+        DrawableCompat.setTint(DrawableCompat.wrap(icon), tintColorId);
         return icon;
     }
 
     public static Drawable applyTintAttr(Context context, int drawableId, int tintAttrId) {
         final TypedValue outValue = new TypedValue();
         context.getTheme().resolveAttribute(tintAttrId, outValue, true);
-        return applyTintColor(context, drawableId, outValue.resourceId);
+        return applyTintList(context, drawableId, outValue.resourceId);
+    }
+
+    private static Drawable getDrawable(Context context, int drawableId){
+        try {
+            return ContextCompat.getDrawable(context, drawableId);
+        } catch (Resources.NotFoundException e){
+            return ContextCompat.getDrawable(context, R.drawable.ic_doc_generic);
+        }
     }
 }

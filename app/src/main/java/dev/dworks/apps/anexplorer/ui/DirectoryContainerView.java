@@ -17,15 +17,17 @@
 
 package dev.dworks.apps.anexplorer.ui;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-
 import android.content.Context;
 import android.graphics.Canvas;
 import android.util.AttributeSet;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+
+import dev.dworks.apps.anexplorer.misc.CrashReportingManager;
 
 public class DirectoryContainerView extends FrameLayout {
 	private boolean mDisappearingFirst = false;
@@ -48,7 +50,8 @@ public class DirectoryContainerView extends FrameLayout {
     	    Field field = ViewGroup.class.getDeclaredField("mDisappearingChildren");
     	    field.setAccessible(true);
     	    mDisappearingChildren = (ArrayList<View>) field.get(this);
-    	} catch (Exception ex) {
+    	} catch (Exception e) {
+            CrashReportingManager.logException(e);
     	}
         final ArrayList<View> disappearing = mDisappearingChildren;
         if (mDisappearingFirst && disappearing != null) {

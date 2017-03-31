@@ -24,14 +24,13 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
+import android.support.v4.util.ArrayMap;
 import android.text.TextUtils;
 import android.util.SparseArray;
 import android.view.View;
 import android.widget.AbsListView;
 
-import com.google.common.collect.Maps;
-
-import java.util.HashMap;
 import java.util.List;
 
 import dev.dworks.apps.anexplorer.misc.PermissionUtil;
@@ -41,6 +40,7 @@ import dev.dworks.apps.anexplorer.model.DocumentStack;
 import dev.dworks.apps.anexplorer.model.DurableUtils;
 import dev.dworks.apps.anexplorer.model.RootInfo;
 import dev.dworks.apps.anexplorer.provider.ExternalStorageProvider;
+import dev.dworks.apps.anexplorer.setting.SettingsActivity;
 
 public abstract class BaseActivity extends ActionBarActivity {
     public static final String TAG = "Documents";
@@ -109,7 +109,7 @@ public abstract class BaseActivity extends ActionBarActivity {
         public String currentSearch;
 
         /** Instance state for every shown directory */
-        public HashMap<String, SparseArray<Parcelable>> dirState = Maps.newHashMap();
+        public ArrayMap<String, SparseArray<Parcelable>> dirState = new ArrayMap<>();
 
         public static final int ACTION_OPEN = 1;
         public static final int ACTION_CREATE = 2;
@@ -190,33 +190,54 @@ public abstract class BaseActivity extends ActionBarActivity {
     }
 
     public void showError(int msg){
-        showToast(msg, R.color.button_text_color_red, Snackbar.LENGTH_SHORT);
+        showToast(msg, ContextCompat.getColor(this, R.color.button_text_color_red), Snackbar.LENGTH_SHORT);
     }
 
     public void showInfo(String msg){
-        showToast(msg, R.color.button_text_color_yellow, Snackbar.LENGTH_SHORT);
-    }
-
-    public void showToast(String msg, int actionColor, int duration){
-        final Snackbar snackbar = Snackbar.make(findViewById(android.R.id.content), msg, Snackbar.LENGTH_SHORT);
-        snackbar.setAction(android.R.string.ok, new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                snackbar.dismiss();
-            }
-        })
-                .setActionTextColor(getResources().getColor(R.color.button_text_color_yellow)).show();
+        showSnackBar(msg, Snackbar.LENGTH_SHORT);
     }
 
     public void showToast(int msg, int actionColor, int duration){
-        final Snackbar snackbar = Snackbar.make(findViewById(android.R.id.content), msg, Snackbar.LENGTH_SHORT);
+        final Snackbar snackbar = Snackbar.make(findViewById(R.id.content_view), msg, duration);
         snackbar.setAction(android.R.string.ok, new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 snackbar.dismiss();
             }
         })
-                .setActionTextColor(getResources().getColor(R.color.button_text_color_yellow)).show();
+                .setActionTextColor(actionColor).show();
+    }
+
+    public void showSnackBar(String text, int duration){
+        final Snackbar snackbar = Snackbar.make(findViewById(R.id.content_view), text, duration);
+        snackbar.setAction(android.R.string.ok, new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                snackbar.dismiss();
+            }
+        });
+        snackbar.setActionTextColor(SettingsActivity.getPrimaryColor()).show();
+    }
+
+    public void showSnackBar(String text, int duration, String action, int actionColor){
+        final Snackbar snackbar = Snackbar.make(findViewById(R.id.content_view), text, duration);
+        snackbar.setAction(action, new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                snackbar.dismiss();
+            }
+        });
+        snackbar.setActionTextColor(actionColor).show();
+    }
+
+    public void showSnackBar(String text, int duration, String action, int actionColor, View.OnClickListener listener){
+        Snackbar.make(findViewById(R.id.content_view), text, duration).setAction(action, listener)
+                .setActionTextColor(actionColor).show();
+    }
+
+    public void showSnackBar(String text, int duration, String action, View.OnClickListener listener){
+        Snackbar.make(findViewById(R.id.content_view), text, duration).setAction(action, listener)
+                .setActionTextColor(SettingsActivity.getPrimaryColor()).show();
     }
 
     public boolean isSAFIssue(String docId){

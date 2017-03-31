@@ -13,7 +13,9 @@ import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.InterstitialAd;
 
 import dev.dworks.apps.anexplorer.R;
-import dev.dworks.apps.anexplorer.misc.Utils;
+import dev.dworks.apps.anexplorer.misc.CrashReportingManager;
+
+import static dev.dworks.apps.anexplorer.DocumentsApplication.isTelevision;
 
 
 /**
@@ -42,7 +44,7 @@ public class AdWrapper extends FrameLayout {
 
     private void init(Context context) {
         //Ads
-        if(!Utils.isTelevision(context)){
+        if(!isTelevision()){
             LayoutInflater.from(context).inflate(R.layout.ads_wrapper, this, true);
             initAd();
         } else {
@@ -52,7 +54,7 @@ public class AdWrapper extends FrameLayout {
     }
 
     public void initInterstitialAd(){
-        mInterstitialAd.setAdUnitId("ca-app-pub-6407484780907805/2724050870");
+        mInterstitialAd.setAdUnitId("ca-app-pub-6407484780907805/9134520474");
         requestNewInterstitial();
     }
 
@@ -102,7 +104,9 @@ public class AdWrapper extends FrameLayout {
             if(null != mAdView){
                 mAdView.loadAd(new AdRequest.Builder().build());
             }
-        } catch (Exception e){ }
+        } catch (Exception e){
+            CrashReportingManager.logException(e);
+        }
     }
 
     AdListener adListener = new AdListener() {

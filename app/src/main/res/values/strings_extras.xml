@@ -23,6 +23,11 @@
     <string name="menu_rename">Rename</string>
     <string name="menu_paste">Paste</string>
     <string name="menu_create_file">Create file</string>
+    <string name="menu_uninstall">Uninstall</string>
+    <string name="menu_stop">Stop</string>
+    <string name="menu_properties">Properties</string>
+    <string name="menu_edit">Edit</string>
+    <string name="menu_add">Add</string>
 
     <string name="root_images">Images</string>
     <string name="root_audio">Audio</string>
@@ -35,9 +40,15 @@
     <string name="root_downloads">Downloads</string>
     <string name="root_app_backup">App Backup</string>
     <string name="root_hidden">Hidden</string>
-    <string name="root_apps">Apps</string>
+    <string name="root_apps">User Apps</string>
+    <string name="root_system_apps">System Apps</string>
     <string name="root_heat_map">Heat map</string>
     <string name="root_processes">Processes</string>
+    <string name="root_home">Home</string>
+    <string name="root_connections">Connections</string>
+    <string name="root_document">Documents</string>
+    <string name="root_archive">Archives</string>
+    <string name="root_apk">APK</string>
 
     <!-- Title for setting that will show all advanced storage devices [CHAR LIMIT=32] -->
     <string name="pref_advanced_devices">Display advanced</string>
@@ -63,6 +74,7 @@
 
     <!-- Representation of download progress percentage when running. [CHAR LIMIT=24] -->
     <string name="download_running_percent">In progress, <xliff:g id="number">%d</xliff:g><xliff:g id="percent">%%</xliff:g></string>
+    <string name="name">AnExplorer</string>
     <string name="app_name">AnExplorer</string>
     <string name="app_ver">Another Explorer</string>
     <string name="app_company">Developed By DWorkS</string>
@@ -79,10 +91,13 @@
     <string name="pref_translucent_mode">Display Translucent Mode</string>
     <string name="pref_as_dialog">Display as Dialog</string>
     <string name="pref_folder_animations">Enable folder animations</string>
+    <string name="pref_recent_media">Show recent media</string>
 
     <!-- Example General settings -->
     <string name="pref_header_general">General</string>
-    <string name="pref_header_login">Login</string>
+    <string name="pref_header_security">Security</string>
+    <string name="pref_header_theme">Theme</string>
+    <string name="pref_header_advanced">Advanced</string>
     <string name="pref_title_pin_enable">Enable PIN Protection</string>
     <string name="pref_description_pin_enable">Gives security to your files</string>
     <string name="pref_title_pin_set">Set PIN</string>
@@ -96,8 +111,13 @@
     <string name="pin_disabled">PIN protection disabled</string>
     <string name="pin_protection">PIN Protection</string>
     <string name="loading">Loading...</string>
-    <string name="pref_foreground_color_title">ActionBar Color</string>
-    <string name="pref_foreground_color_description">The color of action bar</string>
+    <string name="pref_foreground_color_title">Primary Color</string>
+    <string name="pref_foreground_color_description">The main color of actionbar</string>
+    <string name="pref_accent_color_title">Accent Color</string>
+    <string name="pref_accent_color_description">The secondary color</string>
+
+    <string name="pref_theme_style_title">Theme Style</string>
+    <string name="pref_theme_style_description">The style of theme</string>
 
     <!-- Size unit, displayed in a button next to an attachment [CHAR LIMIT=5] -->
     <string name="bytes"><xliff:g id="count">%s</xliff:g> B</string>
@@ -124,4 +144,58 @@
     <string name="made_with_love">Made with Love</string>
     <string name="dworks_logo">DWorkS logo</string>
 
+    <string-array name="theme_style_names">
+        <item>Light</item>
+        <item>Dark</item>
+        <item>Auto</item>
+    </string-array>
+
+    <string-array name="theme_style_values">
+        <item>1</item>
+        <item>2</item>
+        <item>0</item>
+    </string-array>
+
+    <string name="root_usb">USB Storage</string>
+    <string name="root_documents">Documents</string>
+
+    <string name="ext_media_status_removed" msgid="6576172423185918739">"Removed"</string>
+    <string name="ext_media_status_unmounted" msgid="2551560878416417752">"Ejected"</string>
+    <string name="ext_media_status_checking" msgid="6193921557423194949">"Checking…"</string>
+    <string name="ext_media_status_mounted" msgid="7253821726503179202">"Ready"</string>
+    <string name="ext_media_status_mounted_ro" msgid="8020978752406021015">"Read-only"</string>
+    <string name="ext_media_status_bad_removal" msgid="8395398567890329422">"Removed unsafely"</string>
+    <string name="ext_media_status_unmountable" msgid="805594039236667894">"Corrupted"</string>
+    <string name="ext_media_status_unsupported" msgid="4691436711745681828">"Unsupported"</string>
+    <string name="ext_media_status_ejecting" msgid="5463887263101234174">"Ejecting…"</string>
+    <string name="ext_media_status_formatting" msgid="1085079556538644861">"Formatting…"</string>
+    <string name="ext_media_status_missing" msgid="5638633895221670766">"Not inserted"</string>
+
+    <string name="storage_internal" msgid="4891916833657929263">"Internal storage"</string>
+    <string name="storage_sd_card" msgid="3282948861378286745">"SD card"</string>
+    <string name="storage_sd_card_label" msgid="6347111320774379257">"<xliff:g id="MANUFACTURER">%s</xliff:g> SD card"</string>
+    <string name="storage_usb_drive" msgid="6261899683292244209">"USB drive"</string>
+    <string name="storage_usb_drive_label" msgid="4501418548927759953">"<xliff:g id="MANUFACTURER">%s</xliff:g> USB drive"</string>
+    <string name="storage_usb" msgid="3017954059538517278">"USB storage"</string>
+
+    <string name="storage_stats"><xliff:g id="size" example="3GB">%1$s</xliff:g> /<xliff:g id="size" example="3GB">%2$s</xliff:g></string>
+
+    <string name="start_ftp">Start</string>
+    <string name="stop_ftp">Stop</string>
+    <string name="ftp_status_running">Running</string>
+    <string name="ftp_status_not_running">Not Running</string>
+    <string name="ftp_no_wifi">Make sure you\'re connected to WiFi</string>
+    <string name="ftp_notif_starting">Transfer to PC is starting</string>
+    <string name="ftp_notif_title">Transfer to PC started</string>
+    <string name="ftp_notif_text">at %s</string>
+    <string name="ftp_notif_stop_server">STOP</string>
+    <string name="toggle_messages">Transfer to PC</string>
+
+    <string-array name="connection_types">
+        <item>FTP</item>
+        <item>FTPS</item>
+    </string-array>
+
+    <string name="primary_color">Primary Color</string>
+    <string name="accent_color">Accent Color</string>
 </resources>

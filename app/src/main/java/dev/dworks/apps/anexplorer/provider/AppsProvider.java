@@ -20,8 +20,8 @@ package dev.dworks.apps.anexplorer.provider;
 import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 import android.app.ActivityManager.RunningAppProcessInfo;
+import android.app.ActivityManager.RunningServiceInfo;
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -30,13 +30,12 @@ import android.database.Cursor;
 import android.graphics.Point;
 import android.net.Uri;
 import android.os.Binder;
-import android.os.Build;
-import android.os.Environment;
+import android.os.CancellationSignal;
 import android.os.ParcelFileDescriptor;
 import android.text.TextUtils;
 import android.util.SparseArray;
 
-import com.jaredrummler.android.processes.ProcessManager;
+import com.jaredrummler.android.processes.AndroidProcesses;
 import com.jaredrummler.android.processes.models.AndroidAppProcess;
 
 import java.io.File;
@@ -45,17 +44,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 import dev.dworks.apps.anexplorer.BuildConfig;
-import dev.dworks.apps.anexplorer.DocumentsApplication;
 import dev.dworks.apps.anexplorer.R;
 import dev.dworks.apps.anexplorer.cursor.MatrixCursor;
 import dev.dworks.apps.anexplorer.cursor.MatrixCursor.RowBuilder;
-import dev.dworks.apps.anexplorer.misc.CancellationSignal;
 import dev.dworks.apps.anexplorer.misc.FileUtils;
+import dev.dworks.apps.anexplorer.misc.PackageManagerUtils;
 import dev.dworks.apps.anexplorer.misc.StorageUtils;
+import dev.dworks.apps.anexplorer.misc.Utils;
 import dev.dworks.apps.anexplorer.model.DocumentsContract;
 import dev.dworks.apps.anexplorer.model.DocumentsContract.Document;
 import dev.dworks.apps.anexplorer.model.DocumentsContract.Root;
-import dev.dworks.apps.anexplorer.model.RootInfo;
+
+import static dev.dworks.apps.anexplorer.DocumentsApplication.isTelevision;
 
 /**
  * Presents a {@link DocumentsContract} view of Apps contents.
@@ -63,15 +63,17 @@ import dev.dworks.apps.anexplorer.model.RootInfo;
 @SuppressLint("DefaultLocale")
 public class AppsProvider extends DocumentsProvider {
     public static final String AUTHORITY = BuildConfig.APPLICATION_ID + ".apps.documents";
-    public static final String ROOT_ID_APP = "apps";
-    public static final String ROOT_ID_PROCESS = "process";
-    
-    // docId format: apps: com.package
-    // docId format: process: com.package
+	// docId format: user_apps:com.package
+	// docId format: system_apps:com.package
+	// docId format: process:com.package
+
+    public static final String ROOT_ID_USER_APP = "user_apps:";
+    public static final String ROOT_ID_SYSTEM_APP = "system_apps:";
+    public static final String ROOT_ID_PROCESS = "process:";
     
     private static final String[] DEFAULT_ROOT_PROJECTION = new String[] {
             Root.COLUMN_ROOT_ID, Root.COLUMN_FLAGS, Root.COLUMN_ICON,
-            Root.COLUMN_TITLE, Root.COLUMN_DOCUMENT_ID, Root.COLUMN_AVAILABLE_BYTES, Root.COLUMN_TOTAL_BYTES,
+            Root.COLUMN_TITLE, Root.COLUMN_DOCUMENT_ID, Root.COLUMN_AVAILABLE_BYTES, Root.COLUMN_CAPACITY_BYTES,
     };
 
     private static final String[] DEFAULT_DOCUMENT_PROJECTION = new String[] {
@@ -123,22 +125,31 @@ public class AppsProvider extends DocumentsProvider {
     	StorageUtils storageUtils = new StorageUtils(getContext());
         final MatrixCursor result = new MatrixCursor(resolveRootProjection(projection));
         final RowBuilder row = result.newRow();
-        row.add(Root.COLUMN_ROOT_ID, ROOT_ID_APP);
+        row.add(Root.COLUMN_ROOT_ID, ROOT_ID_USER_APP);
         row.add(Root.COLUMN_FLAGS, Root.FLAG_LOCAL_ONLY  | Root.FLAG_ADVANCED | Root.FLAG_SUPER_ADVANCED | Root.FLAG_SUPPORTS_SEARCH);
         row.add(Root.COLUMN_ICON, R.drawable.ic_root_apps);
         row.add(Root.COLUMN_TITLE, getContext().getString(R.string.root_apps));
-        row.add(Root.COLUMN_DOCUMENT_ID, ROOT_ID_APP);
+        row.add(Root.COLUMN_DOCUMENT_ID, ROOT_ID_USER_APP);
         row.add(Root.COLUMN_AVAILABLE_BYTES, storageUtils.getPartionSize(StorageUtils.PARTITION_DATA, false));
-        row.add(Root.COLUMN_TOTAL_BYTES, storageUtils.getPartionSize(StorageUtils.PARTITION_DATA, true));
+        row.add(Root.COLUMN_CAPACITY_BYTES, storageUtils.getPartionSize(StorageUtils.PARTITION_DATA, true));
+
+		final RowBuilder row1 = result.newRow();
+		row1.add(Root.COLUMN_ROOT_ID, ROOT_ID_SYSTEM_APP);
+		row1.add(Root.COLUMN_FLAGS, Root.FLAG_LOCAL_ONLY  | Root.FLAG_ADVANCED | Root.FLAG_SUPER_ADVANCED | Root.FLAG_SUPPORTS_SEARCH);
+		row1.add(Root.COLUMN_ICON, R.drawable.ic_root_apps);
+		row1.add(Root.COLUMN_TITLE, getContext().getString(R.string.root_system_apps));
+		row1.add(Root.COLUMN_DOCUMENT_ID, ROOT_ID_SYSTEM_APP);
+		row1.add(Root.COLUMN_AVAILABLE_BYTES, storageUtils.getPartionSize(StorageUtils.PARTITION_DATA, false));
+		row1.add(Root.COLUMN_CAPACITY_BYTES, storageUtils.getPartionSize(StorageUtils.PARTITION_DATA, true));
         
-        final RowBuilder row1 = result.newRow();
-        row1.add(Root.COLUMN_ROOT_ID, ROOT_ID_PROCESS);
-        row1.add(Root.COLUMN_FLAGS, Root.FLAG_LOCAL_ONLY  | Root.FLAG_ADVANCED | Root.FLAG_SUPER_ADVANCED | Root.FLAG_SUPPORTS_SEARCH);
-        row1.add(Root.COLUMN_ICON, R.drawable.ic_root_process);
-        row1.add(Root.COLUMN_TITLE, getContext().getString(R.string.root_processes));
-        row1.add(Root.COLUMN_DOCUMENT_ID, ROOT_ID_PROCESS);
-        row1.add(Root.COLUMN_AVAILABLE_BYTES, storageUtils.getPartionSize(StorageUtils.PARTITION_RAM, false));
-        row1.add(Root.COLUMN_TOTAL_BYTES, storageUtils.getPartionSize(StorageUtils.PARTITION_RAM, true));
+        final RowBuilder row2 = result.newRow();
+        row2.add(Root.COLUMN_ROOT_ID, ROOT_ID_PROCESS);
+        row2.add(Root.COLUMN_FLAGS, Root.FLAG_LOCAL_ONLY  | Root.FLAG_ADVANCED | Root.FLAG_SUPER_ADVANCED | Root.FLAG_SUPPORTS_SEARCH);
+        row2.add(Root.COLUMN_ICON, R.drawable.ic_root_process);
+        row2.add(Root.COLUMN_TITLE, getContext().getString(R.string.root_processes));
+        row2.add(Root.COLUMN_DOCUMENT_ID, ROOT_ID_PROCESS);
+        row2.add(Root.COLUMN_AVAILABLE_BYTES, storageUtils.getPartionSize(StorageUtils.PARTITION_RAM, false));
+        row2.add(Root.COLUMN_CAPACITY_BYTES, storageUtils.getPartionSize(StorageUtils.PARTITION_RAM, true));
         return result;
     }
     
@@ -146,78 +157,72 @@ public class AppsProvider extends DocumentsProvider {
     public Cursor querySearchDocuments(String rootId, String query, String[] projection) throws FileNotFoundException {
         final MatrixCursor result = new MatrixCursor(resolveDocumentProjection(projection));
 
-    	if (ROOT_ID_APP.equals(rootId)) {
+		if(rootId.startsWith(ROOT_ID_USER_APP)) {
     		List<PackageInfo> allAppList = packageManager.getInstalledPackages(PackageManager.GET_UNINSTALLED_PACKAGES);
     		for (PackageInfo packageInfo : allAppList) {
-    			includeAppFromPackage(result, rootId, packageInfo, query.toLowerCase());
-    		}	
+    			includeAppFromPackage(result, rootId, packageInfo, false, query.toLowerCase());
+    		}
     	}
-    	else{
+		else if(rootId.startsWith(ROOT_ID_SYSTEM_APP)) {
+			List<PackageInfo> allAppList = packageManager.getInstalledPackages(PackageManager.GET_UNINSTALLED_PACKAGES);
+			for (PackageInfo packageInfo : allAppList) {
+				includeAppFromPackage(result, rootId, packageInfo, true, query.toLowerCase());
+			}
+		}
+		else if(rootId.startsWith(ROOT_ID_PROCESS)) {
 			List<RunningAppProcessInfo> runningProcessesList = activityManager.getRunningAppProcesses();
 			for (RunningAppProcessInfo processInfo : runningProcessesList) {
 				includeAppFromProcess(result, rootId, processInfo, query.toLowerCase());
 			}
     	}
-        final Uri notifyUri = DocumentsContract.buildChildDocumentsUri(AUTHORITY, rootId);
-        result.setNotificationUri(getContext().getContentResolver(), notifyUri);
     	return result;
     }
 
     @Override
     public void deleteDocument(String docId) throws FileNotFoundException {
-        // Delegate to real provider
-    	final String rootId = getRootIdForDocId(docId);
     	final String packageName = getPackageForDocId(docId);
         final long token = Binder.clearCallingIdentity();
         try {
-        	if (ROOT_ID_APP.equals(rootId)) {
-    			try {
-    				Uri packageUri = Uri.fromParts("package", packageName,null);
-    				if(packageUri != null){
-    					Intent intentUninstall = new Intent(Intent.ACTION_DELETE, packageUri);
-    					intentUninstall.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-    					getContext().startActivity(intentUninstall);
-    				}	
-    			} catch (Exception e) { }
+        	if (docId.startsWith(ROOT_ID_USER_APP)) {
+				PackageManagerUtils.uninstallApp(getContext(), packageName);
         	}
-        	else{
+        	else if(docId.startsWith(ROOT_ID_PROCESS)) {
         		activityManager.killBackgroundProcesses(getPackageForDocId(docId));
         	}
+        	notifyDocumentsChanged(docId);
         } finally {
             Binder.restoreCallingIdentity(token);
         }
     }
-    
-    @Override
-    public void moveDocument(String documentIdFrom, String documentIdTo, boolean deleteAfter) throws FileNotFoundException {
-    	final String packageName = getPackageForDocId(documentIdFrom);
-    	String fromFilePath = "";
-    	String fileName = "";
-    	try {
-        	PackageInfo packageInfo = packageManager.getPackageInfo(packageName, 0);
-        	ApplicationInfo appInfo = packageInfo.applicationInfo;
-        	fromFilePath = appInfo.sourceDir;
-        	fileName = (String) (appInfo.loadLabel(packageManager) != null ? appInfo.loadLabel(packageManager) : appInfo.packageName);
-            fileName += getAppVersion(packageInfo.versionName);
+
+	@Override
+	public String copyDocument(String sourceDocumentId, String targetParentDocumentId) throws FileNotFoundException {
+		final String packageName = getPackageForDocId(sourceDocumentId);
+		String fromFilePath = "";
+		String fileName = "";
+		try {
+			PackageInfo packageInfo = packageManager.getPackageInfo(packageName, 0);
+			ApplicationInfo appInfo = packageInfo.applicationInfo;
+			fromFilePath = appInfo.sourceDir;
+			fileName = (String) (appInfo.loadLabel(packageManager) != null ? appInfo.loadLabel(packageManager) : appInfo.packageName);
+			fileName += getAppVersion(packageInfo.versionName);
 		} catch (Exception e) {
 		}
 
-		final RootInfo root = DocumentsApplication.getRootsCache(getContext()).getDefaultRoot();
-		File rootFile = (null != root) ? new File(root.path) : Environment.getExternalStorageDirectory();
-
-    	final File fileFrom = new File(fromFilePath);
-    	final File fileTo = new File(rootFile, "AppBackup");
-    	if(!fileTo.exists()){
-    		fileTo.mkdir();
-    	}
-        if (!FileUtils.moveFile(fileFrom, fileTo, fileName)) {
-            throw new IllegalStateException("Failed to copy " + fileFrom);
-        }
-        else{
-            FileUtils.updateMedia(getContext(), FileUtils.makeFilePath(fileTo.getPath(),
-                    fileName +"."+ FileUtils.getExtFromFilename(fileFrom.getPath())));
-        }
-    }
+		final File fileFrom = new File(fromFilePath);
+		final File fileTo = Utils.getAppsBackupFile(getContext());
+		if(!fileTo.exists()){
+			fileTo.mkdir();
+		}
+		if (!FileUtils.moveDocument(fileFrom, fileTo, fileName)) {
+			throw new IllegalStateException("Failed to copy " + fileFrom);
+		}
+		else{
+			FileUtils.updateMediaStore(getContext(), FileUtils.makeFilePath(fileTo.getPath(),
+					fileName +"."+ FileUtils.getExtFromFilename(fileFrom.getPath())));
+		}
+		return fromFilePath;
+	}
 
     @Override
     public Cursor queryDocument(String docId, String[] projection) throws FileNotFoundException {
@@ -229,29 +234,46 @@ public class AppsProvider extends DocumentsProvider {
     @Override
     public Cursor queryChildDocuments(String docId, String[] projection, String sortOrder)
             throws FileNotFoundException {
-        final MatrixCursor result = new MatrixCursor(resolveDocumentProjection(projection));
+        final MatrixCursor result = new DocumentCursor(resolveDocumentProjection(projection), docId);
 
         // Delegate to real provider
         final long token = Binder.clearCallingIdentity();
         try {
-        	if (ROOT_ID_APP.equals(docId)) {
+        	if (docId.startsWith(ROOT_ID_USER_APP)) {
         		List<PackageInfo> allAppList = packageManager.getInstalledPackages(PackageManager.GET_UNINSTALLED_PACKAGES);
         		for (PackageInfo packageInfo : allAppList) {
-        			includeAppFromPackage(result, docId, packageInfo, null);
+        			includeAppFromPackage(result, docId, packageInfo, false, null);
         		}	
         	}
-        	else{
-    			List<RunningAppProcessInfo> runningProcessesList = getRunningAppProcessInfo(getContext());
-    			for (RunningAppProcessInfo processInfo : runningProcessesList) {
-    				includeAppFromProcess(result, docId, processInfo, null);
-    			}
+			else if (docId.startsWith(ROOT_ID_SYSTEM_APP)) {
+				List<PackageInfo> allAppList = packageManager.getInstalledPackages(PackageManager.GET_UNINSTALLED_PACKAGES);
+				for (PackageInfo packageInfo : allAppList) {
+					includeAppFromPackage(result, docId, packageInfo, true, null);
+				}
+			}
+        	else if(docId.startsWith(ROOT_ID_PROCESS)) {
+				if(Utils.hasNougat()){
+					List<RunningServiceInfo> runningServices = activityManager.getRunningServices(1000);
+					for (RunningServiceInfo process : runningServices) {
+						includeAppFromService(result, docId, process, null);
+					}
+				}
+				else if (Utils.hasLollipopMR1()) {
+					List<AndroidAppProcess> runningAppProcesses = AndroidProcesses.getRunningAppProcesses();
+					for (AndroidAppProcess process : runningAppProcesses) {
+						includeAppFromProcess(result, docId, process, null);
+					}
+				} else {
+					List<RunningAppProcessInfo> runningProcessesList = activityManager.getRunningAppProcesses();
+					for (RunningAppProcessInfo processInfo : runningProcessesList) {
+						includeAppFromProcess(result, docId, processInfo, null);
+					}
+
+				}
         	}
         } finally {
             Binder.restoreCallingIdentity(token);
         }
-        final Uri notifyUri = DocumentsContract.buildChildDocumentsUri(AUTHORITY, docId);
-        result.setNotificationUri(getContext().getContentResolver(), notifyUri);
-        notifyRootsChanged(getContext());
         return result;
     }
 
@@ -288,7 +310,7 @@ public class AppsProvider extends DocumentsProvider {
 
 		if (processInfo.importance != RunningAppProcessInfo.IMPORTANCE_EMPTY
 				&& processInfo.importance != RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE) {
-			String process = (String) (processInfo.processName);
+			String process = processInfo.processName;
 			process = process.substring(process.lastIndexOf(".") + 1, process.length());
 			String summary = "";
 			String displayName = "";
@@ -309,7 +331,9 @@ public class AppsProvider extends DocumentsProvider {
 			final String mimeType = Document.MIME_TYPE_APK;
 			
 	        int flags = Document.FLAG_SUPPORTS_DELETE | Document.FLAG_SUPPORTS_THUMBNAIL;
-
+			if(isTelevision()) {
+				flags |= Document.FLAG_DIR_PREFERS_GRID;
+			}
 			summary = processTypeCache.get(processInfo.importance);
 			final long size = getProcessSize(processInfo.pid);
 			final String packageName = processInfo.processName;
@@ -326,18 +350,15 @@ public class AppsProvider extends DocumentsProvider {
 		}
     }
 
-	private void includeAppFromPackage(MatrixCursor result, String docId, PackageInfo packageInfo, String query ) {
+	private void includeAppFromPackage(MatrixCursor result, String docId, PackageInfo packageInfo,
+									   boolean showSystem, String query) {
 
 		ApplicationInfo appInfo = packageInfo.applicationInfo;
-		if(isAppUseful(appInfo)){
+		if(showSystem == isSystemApp(appInfo)){
 			String displayName = "";
 			final String packageName = packageInfo.packageName;
             String summary = packageName;
             displayName = packageName;
-/*			try {
-				displayName = (String) (appInfo.loadLabel(packageManager) != null ? appInfo.loadLabel(packageManager) : appInfo.packageName);
-				summary = packageInfo.versionName == null ? "" : packageInfo.versionName;
-			} catch (Exception e) { }*/
 
 			if (null != query && !displayName.toLowerCase().contains(query)) {
 				return;
@@ -345,8 +366,11 @@ public class AppsProvider extends DocumentsProvider {
 			final String path = appInfo.sourceDir;
 			final String mimeType = Document.MIME_TYPE_APK;
 
-			int flags = Document.FLAG_SUPPORTS_EDIT | Document.FLAG_SUPPORTS_DELETE | Document.FLAG_SUPPORTS_THUMBNAIL;
-			
+			int flags = Document.FLAG_SUPPORTS_COPY | Document.FLAG_SUPPORTS_DELETE | Document.FLAG_SUPPORTS_THUMBNAIL;
+			if(isTelevision()) {
+				flags |= Document.FLAG_DIR_PREFERS_GRID;
+			}
+
 	        final long size = new File(appInfo.sourceDir).length();
 	        final long lastModified = packageInfo.lastUpdateTime;
 	        final RowBuilder row = result.newRow();
@@ -360,7 +384,94 @@ public class AppsProvider extends DocumentsProvider {
 	        row.add(Document.COLUMN_FLAGS, flags);
 		}
     }
-	
+
+	private void includeAppFromProcess(MatrixCursor result, String docId, AndroidAppProcess processInfo, String query ) {
+
+		String process = processInfo.name;
+		final String packageName = processInfo.getPackageName();
+		process = process.substring(process.lastIndexOf(".") + 1, process.length());
+		String summary = "";
+		String displayName = "";
+		ApplicationInfo appInfo = null;
+		try {
+			appInfo = packageManager.getPackageInfo(packageName, PackageManager.GET_ACTIVITIES).applicationInfo;
+			displayName = process ;
+		} catch (Exception e) { }
+
+		if (TextUtils.isEmpty(displayName)) {
+			displayName = process;
+		}
+
+		if (null != query && !displayName.toLowerCase().contains(query)) {
+			return;
+		}
+		final String path = null != appInfo ? appInfo.sourceDir : "";
+		final String mimeType = Document.MIME_TYPE_APK;
+
+		int flags = Document.FLAG_SUPPORTS_DELETE | Document.FLAG_SUPPORTS_THUMBNAIL;
+		if(isTelevision()) {
+			flags |= Document.FLAG_DIR_PREFERS_GRID;
+		}
+
+		int importance = processInfo.foreground ? RunningAppProcessInfo.IMPORTANCE_FOREGROUND : RunningAppProcessInfo.IMPORTANCE_BACKGROUND;
+		summary = processTypeCache.get(importance);
+		final long size = getProcessSize(processInfo.pid);
+
+
+		final RowBuilder row = result.newRow();
+		row.add(Document.COLUMN_DOCUMENT_ID, getDocIdForApp(docId, packageName));
+		row.add(Document.COLUMN_DISPLAY_NAME, displayName);
+		row.add(Document.COLUMN_SUMMARY, summary);
+		row.add(Document.COLUMN_SIZE, size);
+		row.add(Document.COLUMN_MIME_TYPE, mimeType);
+		//row.add(Document.COLUMN_LAST_MODIFIED, lastModified);
+		row.add(Document.COLUMN_PATH, path);
+		row.add(Document.COLUMN_FLAGS, flags);
+	}
+
+	private void includeAppFromService(MatrixCursor result, String docId, RunningServiceInfo processInfo, String query ) {
+
+		String process = processInfo.process;
+		final String packageName = processInfo.process;
+		process = process.substring(process.lastIndexOf(".") + 1, process.length());
+		String summary = "";
+		String displayName = "";
+		ApplicationInfo appInfo = null;
+		try {
+			appInfo = packageManager.getPackageInfo(packageName, PackageManager.GET_ACTIVITIES).applicationInfo;
+			displayName = process ;
+		} catch (Exception e) { }
+
+		if (TextUtils.isEmpty(displayName)) {
+			displayName = process;
+		}
+
+		if (null != query && !displayName.toLowerCase().contains(query)) {
+			return;
+		}
+		final String path = null != appInfo ? appInfo.sourceDir : "";
+		final String mimeType = Document.MIME_TYPE_APK;
+
+		int flags = Document.FLAG_SUPPORTS_DELETE | Document.FLAG_SUPPORTS_THUMBNAIL;
+		if(isTelevision()) {
+			flags |= Document.FLAG_DIR_PREFERS_GRID;
+		}
+
+		int importance = processInfo.foreground ? RunningAppProcessInfo.IMPORTANCE_FOREGROUND : RunningAppProcessInfo.IMPORTANCE_BACKGROUND;
+		summary = processTypeCache.get(importance);
+		final long size = getProcessSize(processInfo.pid);
+
+		final RowBuilder row = result.newRow();
+		row.add(Document.COLUMN_DOCUMENT_ID, getDocIdForApp(docId, packageName));
+		row.add(Document.COLUMN_DISPLAY_NAME, displayName);
+		row.add(Document.COLUMN_SUMMARY, summary);
+		row.add(Document.COLUMN_SIZE, size);
+		row.add(Document.COLUMN_MIME_TYPE, mimeType);
+		//row.add(Document.COLUMN_LAST_MODIFIED, processInfo.lastActivityTime);
+		row.add(Document.COLUMN_PATH, path);
+		row.add(Document.COLUMN_FLAGS, flags);
+	}
+
 	private static String getAppName(String packageName){
 		String name = packageName;
 		try {
@@ -384,28 +495,24 @@ public class AppsProvider extends DocumentsProvider {
     }
 
 	private static boolean isAppUseful(ApplicationInfo appInfo) {
-		 if (appInfo.flags != 0 
-				 && ((appInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
-				 || (appInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0)) {
-             return true;
-		 }
-		return false;
+        return appInfo.flags != 0
+                && ((appInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+                || (appInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0);
+    }
+
+    private static boolean isSystemApp(ApplicationInfo appInfo){
+		return appInfo.flags != 0 && (appInfo.flags
+				& (ApplicationInfo.FLAG_UPDATED_SYSTEM_APP | ApplicationInfo.FLAG_SYSTEM)) > 0;
 	}
 
 	public static String getDocIdForApp(String rootId, String packageName){
-    	return rootId + ":" + packageName;
+    	return rootId + packageName;
     }
     
     public static String getPackageForDocId(String docId){
         final int splitIndex = docId.indexOf(':', 1);
         final String packageName = docId.substring(splitIndex + 1);
         return packageName;
-    }
-    
-    public static String getRootIdForDocId(String docId){
-        final int splitIndex = docId.indexOf(':', 1);
-        final String tag = docId.substring(0, splitIndex);
-        return tag;
     }
 
 	private long getProcessSize(int pid) {
@@ -420,12 +527,30 @@ public class AppsProvider extends DocumentsProvider {
 	 * running processes (it will not return an empty list).  This list ordering is not
 	 * specified.
 	 */
-	public static List<ActivityManager.RunningAppProcessInfo> getRunningAppProcessInfo(Context ctx) {
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
-			List<AndroidAppProcess> runningAppProcesses = ProcessManager.getRunningAppProcesses();
-			List<ActivityManager.RunningAppProcessInfo> appProcessInfos = new ArrayList<>();
+	public static List<RunningAppProcessInfo> getRunningAppProcessInfo(Context ctx) {
+		ActivityManager am = (ActivityManager) ctx.getSystemService(Context.ACTIVITY_SERVICE);
+		List<RunningAppProcessInfo> appProcessInfos = new ArrayList<>();
+		String prevProcess = "";
+		if(Utils.hasNougat()){
+			List<RunningServiceInfo> runningServices = am.getRunningServices(1000);
+			for (RunningServiceInfo process : runningServices) {
+				RunningAppProcessInfo info = new RunningAppProcessInfo(
+						process.process, process.pid, null
+				);
+				info.uid = process.uid;
+				info.importance = process.foreground ? RunningAppProcessInfo.IMPORTANCE_FOREGROUND : RunningAppProcessInfo.IMPORTANCE_BACKGROUND;
+
+				if(!prevProcess.equals(process.process)){
+					prevProcess = process.process;
+					appProcessInfos.add(info);
+				}
+			}
+			return appProcessInfos;
+		}
+		else if (Utils.hasLollipopMR1()) {
+			List<AndroidAppProcess> runningAppProcesses = AndroidProcesses.getRunningAppProcesses();
 			for (AndroidAppProcess process : runningAppProcesses) {
-				ActivityManager.RunningAppProcessInfo info = new ActivityManager.RunningAppProcessInfo(
+				RunningAppProcessInfo info = new RunningAppProcessInfo(
 						process.name, process.pid, null
 				);
 				info.uid = process.uid;
@@ -435,8 +560,26 @@ public class AppsProvider extends DocumentsProvider {
 			}
 			return appProcessInfos;
 		}
-		ActivityManager am = (ActivityManager) ctx.getSystemService(Context.ACTIVITY_SERVICE);
 		return am.getRunningAppProcesses();
 	}
 
+	private class DocumentCursor extends MatrixCursor {
+		public DocumentCursor(String[] columnNames, String docId) {
+			super(columnNames);
+
+			final Uri notifyUri = DocumentsContract.buildChildDocumentsUri(AUTHORITY, docId);
+			setNotificationUri(getContext().getContentResolver(), notifyUri);
+		}
+
+		@Override
+		public void close() {
+			super.close();
+		}
+	}
+
+	private void notifyDocumentsChanged(String docId){
+		final String rootId = getParentRootIdForDocId(docId);
+		Uri uri = DocumentsContract.buildChildDocumentsUri(AUTHORITY, rootId);
+		getContext().getContentResolver().notifyChange(uri, null, false);
+	}
 }

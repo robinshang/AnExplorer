@@ -17,9 +17,6 @@
 
 package dev.dworks.apps.anexplorer.fragment;
 
-import android.app.DialogFragment;
-import android.app.FragmentManager;
-import android.app.FragmentTransaction;
 import android.content.ContentProviderClient;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -29,6 +26,9 @@ import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.OperationCanceledException;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentTransaction;
 import android.text.TextUtils;
 import android.text.format.Formatter;
 import android.util.Log;
@@ -41,14 +41,15 @@ import android.widget.TextView;
 
 import java.io.File;
 
+import dev.dworks.apps.anexplorer.DialogFragment;
 import dev.dworks.apps.anexplorer.DocumentsActivity;
 import dev.dworks.apps.anexplorer.DocumentsApplication;
 import dev.dworks.apps.anexplorer.R;
 import dev.dworks.apps.anexplorer.misc.ContentProviderClientCompat;
+import dev.dworks.apps.anexplorer.misc.CrashReportingManager;
 import dev.dworks.apps.anexplorer.misc.IconColorUtils;
 import dev.dworks.apps.anexplorer.misc.IconUtils;
 import dev.dworks.apps.anexplorer.misc.MimePredicate;
-import dev.dworks.apps.anexplorer.misc.OperationCanceledException;
 import dev.dworks.apps.anexplorer.misc.Utils;
 import dev.dworks.apps.anexplorer.model.DocumentInfo;
 import dev.dworks.apps.anexplorer.model.DocumentsContract;
@@ -59,7 +60,7 @@ import dev.dworks.apps.anexplorer.ui.CircleImage;
 /**
  * Display document title editor and save button.
  */
-public class DetailFragment extends DialogFragment{
+public class DetailFragment extends DialogFragment {
 	public static final String TAG_DETAIL = "DetailFragment";
 	private static final String EXTRA_DOC = "document";
 	private static final String EXTRA_IS_DIALOG = "is_dialog";
@@ -154,8 +155,8 @@ public class DetailFragment extends DialogFragment{
 		}
 		
 		name.setText(doc.displayName);
-        name.setTextColor(Utils.getLightColor(SettingsActivity.getActionBarColor(getActivity())));
-        iconMimeBackground.setBackgroundColor(IconColorUtils.loadMimeColor(getActivity(), doc.mimeType, doc.authority, doc.documentId, SettingsActivity.getActionBarColor(getActivity())));
+        name.setTextColor(Utils.getLightColor(SettingsActivity.getPrimaryColor(getActivity())));
+        iconMimeBackground.setBackgroundColor(IconColorUtils.loadMimeColor(getActivity(), doc.mimeType, doc.authority, doc.documentId, SettingsActivity.getPrimaryColor(getActivity())));
 		path.setText(doc.path);
         if(!TextUtils.isEmpty(doc.path)){
             path.setText(doc.path);
@@ -164,7 +165,7 @@ public class DetailFragment extends DialogFragment{
             path_layout.setVisibility(View.GONE);
         }
 		modified.setText(Utils.formatTime(getActivity(), doc.lastModified));
-		type.setText(IconUtils.getTypeNameFromMimeType(getActivity(), doc.mimeType));
+		type.setText(IconUtils.getTypeNameFromMimeType(doc.mimeType));
 		
 		if(!TextUtils.isEmpty(doc.summary)){
 			contents.setText(doc.summary);
@@ -213,6 +214,7 @@ public class DetailFragment extends DialogFragment{
 					if (!(e instanceof OperationCanceledException)) {
 						Log.w(TAG_DETAIL, "Failed to load thumbnail for " + uri + ": " + e);
 					}
+					CrashReportingManager.logException(e);
 				} finally {
 					ContentProviderClientCompat.releaseQuietly(client);
 				}

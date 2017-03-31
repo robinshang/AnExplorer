@@ -20,102 +20,74 @@ import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
 
-import com.google.android.gms.analytics.GoogleAnalytics;
-import com.google.android.gms.analytics.HitBuilders;
-import com.google.android.gms.analytics.Tracker;
-import dev.dworks.apps.anexplorer.BuildConfig;
-import dev.dworks.apps.anexplorer.R;
+import com.google.android.gms.common.api.BooleanResult;
+import com.google.firebase.analytics.FirebaseAnalytics;
 
-import static dev.dworks.apps.anexplorer.misc.LogUtils.LOGD;
+import dev.dworks.apps.anexplorer.BuildConfig;
+import dev.dworks.apps.anexplorer.model.RootInfo;
 
 public class AnalyticsManager {
     private static Context sAppContext = null;
 
-    private static GoogleAnalytics mGoogleAnalytics;
-    private static Tracker mTracker;
+    private static FirebaseAnalytics mFirebaseAnalytics;
     private final static String TAG = LogUtils.makeLogTag(AnalyticsManager.class);
 
+    public static String FILE_TYPE = "file_type";
+    public static String FILE_COUNT = "file_count";
+    public static String FILE_MOVE = "file_move";
+
     private static boolean canSend() {
-        return sAppContext != null && mTracker != null
+        return sAppContext != null && mFirebaseAnalytics != null
                 && !BuildConfig.DEBUG ;
     }
 
-    public static void sendScreenView(String screenName) {
-        if (canSend()) {
-            mTracker.setScreenName(screenName);
-            mTracker.send(new HitBuilders.AppViewBuilder().build());
-            LOGD(TAG, "Screen View recorded: " + screenName);
-        } else {
-            LOGD(TAG, "Screen View NOT recorded (analytics disabled or not ready).");
-        }
-    }
-
-    public static void sendView(String screenName) {
-        if (canSend()) {
-            mTracker.setScreenName(screenName);
-            mTracker.send(new HitBuilders.AppViewBuilder().build());
-            LOGD(TAG, "Screen View recorded: " + screenName);
-        } else {
-            LOGD(TAG, "Screen View NOT recorded (analytics disabled or not ready).");
-        }
-    }
-
-    public static void sendEvent(String category, String action, String label, long value) {
-        if (canSend()) {
-            mTracker.send(new HitBuilders.EventBuilder()
-                    .setCategory(category)
-                    .setAction(action)
-                    .setLabel(label)
-                    .setValue(value)
-                    .build());
-
-            LOGD(TAG, "Event recorded:");
-            LOGD(TAG, "\tCategory: " + category);
-            LOGD(TAG, "\tAction: " + action);
-            LOGD(TAG, "\tLabel: " + label);
-            LOGD(TAG, "\tValue: " + value);
-        } else {
-            LOGD(TAG, "Analytics event ignored (analytics disabled or not ready).");
-        }
-    }
-
-    public static void sendEvent(String category, String action, String label) {
-        sendEvent(category, action, label, 0);
-    }
-
-	public static void startTracking(Activity activity) {
-        if (canSend()) {
-            mGoogleAnalytics.reportActivityStart(activity);
-        } else {
-            LOGD(TAG, "Analytics event ignored (analytics disabled or not ready).");
-        }
-	}
-
-	public static void stopTracking(Activity activity) {
-        if (canSend()) {
-            mGoogleAnalytics.reportActivityStop(activity);
-        } else {
-            LOGD(TAG, "Analytics event ignored (analytics disabled or not ready).");
-        }
-	}
-
-    public static synchronized void setTracker(Tracker tracker) {
-        mTracker = tracker;
-    }
-
-    public Tracker getTracker() {
-        return mTracker;
-    }
-
-    public static synchronized Tracker initializeAnalyticsTracker(Context context) {
+    public static synchronized void intialize(Context context) {
         sAppContext = context;
-        if (mTracker == null) {
-            int useProfile;
-            useProfile = R.xml.analytics;
-            mGoogleAnalytics = GoogleAnalytics.getInstance(context);
-            mTracker = mGoogleAnalytics.newTracker(useProfile);
-            mTracker.enableAdvertisingIdCollection(true);
+        mFirebaseAnalytics = FirebaseAnalytics.getInstance(context);
+
+        setProperty("DeviceType", Utils.getDeviceType(context));
+        setProperty("Rooted", Boolean.toString(Utils.isRooted()));
+    }
+
+    public static void setProperty(String propertyName, String propertyValue){
+        if (!canSend()) {
+            return;
         }
-        return mTracker;
+        mFirebaseAnalytics.setUserProperty(propertyName, propertyValue);
+    }
+
+    public static void logEvent(String eventName){
+        if (!canSend()) {
+            return;
+        }
+        mFirebaseAnalytics.logEvent(eventName, new Bundle());
+    }
+
+    public static void logEvent(String eventName, Bundle params){
+        if (!canSend()) {
+            return;
+        }
+        mFirebaseAnalytics.logEvent(eventName, params);
+    }
+
+    public static void logEvent(String eventName, RootInfo rootInfo, Bundle params){
+        if (!canSend()) {
+            return;
+        }
+        if(null != rootInfo){
+            eventName = eventName + "_" + rootInfo.derivedTag;
+        }
+
+        mFirebaseAnalytics.logEvent(eventName, params);
+    }
+
+    public static void setCurrentScreen(Activity activity, String screenName){
+        if (!canSend()) {
+            return;
+        }
+
+        if(null != screenName) {
+            mFirebaseAnalytics.setCurrentScreen(activity, screenName, screenName);
+        }
     }
 }

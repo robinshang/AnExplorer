@@ -18,8 +18,6 @@
 package dev.dworks.apps.anexplorer.fragment;
 
 import android.app.Dialog;
-import android.app.DialogFragment;
-import android.app.FragmentManager;
 import android.content.ContentProviderClient;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -27,16 +25,19 @@ import android.content.DialogInterface;
 import android.content.DialogInterface.OnClickListener;
 import android.net.Uri;
 import android.os.Bundle;
+import android.support.v4.app.FragmentManager;
 import android.support.v7.app.AlertDialog;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
 
+import dev.dworks.apps.anexplorer.DialogFragment;
 import dev.dworks.apps.anexplorer.DocumentsActivity;
 import dev.dworks.apps.anexplorer.R;
 import dev.dworks.apps.anexplorer.misc.AsyncTask;
 import dev.dworks.apps.anexplorer.misc.ContentProviderClientCompat;
+import dev.dworks.apps.anexplorer.misc.CrashReportingManager;
 import dev.dworks.apps.anexplorer.misc.FileUtils;
 import dev.dworks.apps.anexplorer.misc.ProviderExecutor;
 import dev.dworks.apps.anexplorer.misc.Utils;
@@ -51,7 +52,7 @@ import static dev.dworks.apps.anexplorer.DocumentsActivity.TAG;
 public class RenameFragment extends DialogFragment {
     private static final String TAG_RENAME = "rename";
 	private static final String EXTRA_DOC = "document";
-	
+	private boolean editExtension = true;
 	private DocumentInfo doc;
 	
     public static void show(FragmentManager fm, DocumentInfo doc) {
@@ -83,8 +84,9 @@ public class RenameFragment extends DialogFragment {
 
         final View view = dialogInflater.inflate(R.layout.dialog_create_dir, null, false);
         final EditText text1 = (EditText) view.findViewById(android.R.id.text1);
+        Utils.tintWidget(text1);
 
-        String nameOnly = FileUtils.removeExtension(doc.mimeType, doc.displayName);
+        String nameOnly = editExtension ? doc.displayName : FileUtils.removeExtension(doc.mimeType, doc.displayName);
         text1.setText(nameOnly);
         text1.setSelection(text1.getText().length());
         
@@ -95,7 +97,7 @@ public class RenameFragment extends DialogFragment {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 final String displayName = text1.getText().toString();
-                final String fileName = FileUtils.addExtension(doc.mimeType, displayName);
+                final String fileName = editExtension ? displayName : FileUtils.addExtension(doc.mimeType, displayName);
                 		
                 new RenameTask(activity, doc, fileName).executeOnExecutor(
                         ProviderExecutor.forAuthority(doc.authority));
@@ -129,10 +131,11 @@ public class RenameFragment extends DialogFragment {
             ContentProviderClient client = null;
             try {
                 final Uri childUri = DocumentsContract.renameDocument(
-                		resolver, mDoc.derivedUri, mDoc.mimeType, mFileName);
+                		resolver, mDoc.derivedUri, mFileName);
                 return DocumentInfo.fromUri(resolver, childUri);
             } catch (Exception e) {
                 Log.w(TAG, "Failed to rename directory", e);
+                CrashReportingManager.logException(e);
                 return null;
             } finally {
             	ContentProviderClientCompat.releaseQuietly(client);

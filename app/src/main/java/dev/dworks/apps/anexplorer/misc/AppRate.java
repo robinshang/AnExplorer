@@ -2,25 +2,29 @@ package dev.dworks.apps.anexplorer.misc;
 
 import android.app.Activity;
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
-import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewGroup.LayoutParams;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
+import android.widget.Button;
 import android.widget.ImageView;
-import android.widget.TextView;
 
 import dev.dworks.apps.anexplorer.R;
 import dev.dworks.apps.anexplorer.setting.SettingsActivity;
 
+import static dev.dworks.apps.anexplorer.R.id.action_close;
+import static dev.dworks.apps.anexplorer.R.id.action_feedback;
+import static dev.dworks.apps.anexplorer.R.id.action_rate;
+import static dev.dworks.apps.anexplorer.misc.Utils.openFeedback;
+import static dev.dworks.apps.anexplorer.misc.Utils.openPlaystore;
+
 /**
  * Created by nicolas on 06/03/14.
  */
-public class AppRate {
+public class AppRate implements View.OnClickListener{
 
     private static final String PREFS_NAME = "app_rate_prefs";
     private final String KEY_COUNT = "count";
@@ -28,7 +32,7 @@ public class AppRate {
     private Activity activity;
     private ViewGroup viewGroup;
     private String text;
-    private int initialLaunchCount = 5;
+    private int initialLaunchCount = 10;
     private RetryPolicy policy = RetryPolicy.EXPONENTIAL;
     private OnShowListener onShowListener;
     private SharedPreferences settings;
@@ -47,7 +51,7 @@ public class AppRate {
 
     public static AppRate with(Activity activity) {
         AppRate instance = new AppRate(activity);
-        instance.text = "Like AnExplorer? Spread the word!";//activity.getString(R.string.dra_rate_app);
+        instance.text = "Enjoying the app? Spread the word!";//activity.getString(R.string.dra_rate_app);
         instance.settings = activity.getSharedPreferences(PREFS_NAME, 0);
         instance.editor = instance.settings.edit();
         return instance;
@@ -55,7 +59,7 @@ public class AppRate {
 
     public static AppRate with(Activity activity, ViewGroup viewGroup) {
         AppRate instance = new AppRate(activity, viewGroup);
-        instance.text = "Like AnExplorer? Rate It!";//activity.getString(R.string.dra_rate_app);
+        instance.text = "Enjoying the app? Spread the word!";//activity.getString(R.string.dra_rate_app);
         instance.settings = activity.getSharedPreferences(PREFS_NAME, 0);
         instance.editor = instance.settings.edit();
         return instance;
@@ -169,42 +173,25 @@ public class AppRate {
     private void showAppRate() {
         LayoutInflater inflater = (LayoutInflater) activity.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         if(null != viewGroup){
-            mainView = (ViewGroup) inflater.inflate(R.layout.app_rate, ((ViewGroup) viewGroup), false);
+            mainView = (ViewGroup) inflater.inflate(R.layout.layout_app_feedback, viewGroup, false);
         }
         else{
-            mainView = (ViewGroup) inflater.inflate(R.layout.app_rate, null);
+            mainView = (ViewGroup) inflater.inflate(R.layout.layout_app_feedback, null);
         }
 
-        View background = mainView.findViewById(R.id.background);
-        ImageView close = (ImageView) mainView.findViewById(R.id.close);
-        TextView textView = (TextView) mainView.findViewById(R.id.text);
+        ImageView icon = (ImageView) mainView.findViewById(android.R.id.icon);
+        ImageView action_close = (ImageView) mainView.findViewById(R.id.action_close);
+        Button action_rate = (Button) mainView.findViewById(R.id.action_rate);
+        Button action_feedback = (Button) mainView.findViewById(R.id.action_feedback);
 
-        background.setBackgroundColor(Utils.getLightColor(SettingsActivity.getActionBarColor(activity)));
-        textView.setText(text);
+        int color = SettingsActivity.getAccentColor();
+        icon.setImageDrawable(IconUtils.applyTint(activity, R.drawable.ic_support, color));
+        action_rate.setTextColor(color);
+        action_feedback.setTextColor(color);
 
-        close.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                hideAllViews(mainView);
-                if (onShowListener != null)onShowListener.onRateAppDismissed();
-            }
-        });
-
-        textView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + activity.getPackageName()));
-                if(Utils.isIntentAvailable(activity, intent)) {
-                    activity.startActivity(intent);
-                }
-                if (onShowListener != null)onShowListener.onRateAppClicked();
-                hideAllViews(mainView);
-                editor.putBoolean(KEY_CLICKED, true);
-                editor.apply();
-
-            }
-        });
-
+        action_close.setOnClickListener(this);
+        action_rate.setOnClickListener(this);
+        action_feedback.setOnClickListener(this);
 
         if (delay > 0) {
             activity.getWindow().getDecorView().postDelayed(new Runnable() {
@@ -263,6 +250,29 @@ public class AppRate {
         if (onShowListener != null) onShowListener.onRateAppShowing();
     }
 
+    @Override
+    public void onClick(View view) {
+        switch (view.getId()){
+            case action_close:
+                hideAllViews(mainView);
+                if (onShowListener != null)onShowListener.onRateAppDismissed();
+                break;
+            case action_rate:
+                openPlaystore(activity);
+                if (onShowListener != null)onShowListener.onRateAppClicked();
+                hideAllViews(mainView);
+                editor.putBoolean(KEY_CLICKED, true);
+                editor.apply();
+                break;
+            case action_feedback:
+                openFeedback(activity);
+                hideAllViews(mainView);
+                editor.putBoolean(KEY_CLICKED, true);
+                editor.apply();
+                break;
+        }
+    }
+
     public interface OnShowListener {
         void onRateAppShowing();
 
@@ -285,7 +295,7 @@ public class AppRate {
         /**
          * Will never retry
          */
-        NONE;
+        NONE
     }
     
     /**

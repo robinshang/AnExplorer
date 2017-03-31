@@ -18,42 +18,54 @@
 package dev.dworks.apps.anexplorer.setting;
 
 import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
-import android.graphics.Point;
+import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
-import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.TransitionDrawable;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
+import android.support.v4.content.ContextCompat;
 import android.text.TextUtils;
 import android.view.MenuItem;
-import android.view.WindowManager;
 
 import java.util.List;
 
+import dev.dworks.apps.anexplorer.DocumentsApplication;
 import dev.dworks.apps.anexplorer.R;
-import dev.dworks.apps.anexplorer.misc.Utils;
+import dev.dworks.apps.anexplorer.misc.AnalyticsManager;
+import dev.dworks.apps.anexplorer.misc.CrashReportingManager;
 
 public class SettingsActivity extends AppCompatPreferenceActivity {
-	
-    private static final String KEY_ADVANCED_DEVICES = "advancedDevices";
-    private static final String KEY_FILE_SIZE = "fileSize";
-    private static final String KEY_FOLDER_SIZE = "folderSize";
-    private static final String KEY_FILE_THUMBNAIL = "fileThumbnail";
-    private static final String KEY_FILE_HIDDEN = "fileHidden";
-    public static final String KEY_ROOT_MODE = "rootMode";
-    public static final String KEY_ACTIONBAR_COLOR = "actionBarColor";
-    public static final String KEY_FOLDER_ANIMATIONS = "folderAnimations";
+
+    public static final String TAG = "Settings";
+
+    private static final int FRAGMENT_OPEN = 99;
+
+    private static final String EXTRA_RECREATE = "recreate";
+    public static final String KEY_ADVANCED_DEVICES = "advancedDevices";
+    public static final String KEY_FILE_SIZE = "fileSize";
+    public static final String KEY_FOLDER_SIZE = "folderSize";
+    public static final String KEY_FILE_THUMBNAIL = "fileThumbnail";
+    public static final String KEY_FILE_HIDDEN = "fileHidden";
     private static final String KEY_PIN = "pin";
-    private static final String PIN_ENABLED = "pin_enable";
-	
+    public static final String KEY_PIN_ENABLED = "pin_enable";
+    public static final String KEY_PIN_SET = "pin_set";
+    public static final String KEY_ROOT_MODE = "rootMode";
+    public static final String KEY_PRIMARY_COLOR = "primaryColor";
+    public static final String KEY_ACCENT_COLOR = "accentColor";
+    public static final String KEY_THEME_STYLE = "themeStyle";
+    public static final String KEY_FOLDER_ANIMATIONS = "folderAnimations";
+    public static final String KEY_RECENT_MEDIA = "recentMedia";
+
 	private Resources res;
 	private int actionBarColor;
     private final Handler handler = new Handler();
     private Drawable oldBackground;
+    private boolean mRecreate = false;
 
     public static boolean getDisplayAdvancedDevices(Context context) {
         return PreferenceManager.getDefaultSharedPreferences(context)
@@ -80,15 +92,42 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
                 .getBoolean(KEY_FILE_HIDDEN, false);
     }
 
+    public static boolean getDisplayRecentMedia() {
+        return PreferenceManager.getDefaultSharedPreferences(DocumentsApplication.getInstance().getBaseContext())
+                .getBoolean(KEY_RECENT_MEDIA, true);
+    }
+
     public static boolean getRootMode(Context context) {
         return PreferenceManager.getDefaultSharedPreferences(context)
-                .getBoolean(KEY_ROOT_MODE, false);
+                .getBoolean(KEY_ROOT_MODE, true);
     }
     
-    public static int getActionBarColor(Context context) {
-    	int newColor = context.getResources().getColor(R.color.defaultColor);
+    public static int getPrimaryColor(Context context) {
+    	int newColor = ContextCompat.getColor(context, R.color.defaultColor);
         return PreferenceManager.getDefaultSharedPreferences(context)
-                .getInt(KEY_ACTIONBAR_COLOR, newColor);
+                .getInt(KEY_PRIMARY_COLOR, newColor);
+    }
+
+    public static int getPrimaryColor() {
+        return PreferenceManager.getDefaultSharedPreferences(DocumentsApplication.getInstance().getBaseContext())
+                .getInt(KEY_PRIMARY_COLOR, Color.parseColor("#0288D1"));
+    }
+
+    public static int getAccentColor() {
+        return PreferenceManager.getDefaultSharedPreferences(DocumentsApplication.getInstance().getBaseContext())
+                .getInt(KEY_ACCENT_COLOR, Color.parseColor("#EF3A0F"));
+    }
+
+    public static void setAccentColor(int color) {
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(DocumentsApplication.getInstance().getBaseContext());
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putInt(KEY_ACCENT_COLOR, color);
+        editor.commit();
+    }
+
+    public static String getThemeStyle() {
+        return PreferenceManager.getDefaultSharedPreferences(DocumentsApplication.getInstance().getBaseContext())
+                .getString(KEY_THEME_STYLE, "1");
     }
     
     public static boolean getFolderAnimation(Context context) {
@@ -101,12 +140,11 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
         super.onCreate(savedInstanceState);
 
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        res = getResources();
         changeActionBarColor(0);
-        actionBarColor = getActionBarColor(this);
+        res = getResources();
+        actionBarColor = getPrimaryColor(this);
     }
 
-    /** {@inheritDoc} */
 	@Override
 	public void onBuildHeaders(List<Header> target) {
 		loadHeadersFromResource(R.xml.pref_headers, target);
@@ -123,12 +161,11 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
     
     @Override
     protected boolean isValidFragment(String fragmentName) {
-    	recreate();
     	return true;
     }
     
 	public static final boolean isPinEnabled(Context context) {
-        return PreferenceManager.getDefaultSharedPreferences(context).getBoolean(PIN_ENABLED, false)
+        return PreferenceManager.getDefaultSharedPreferences(context).getBoolean(KEY_PIN_ENABLED, false)
         		&& isPinProtected(context);
     }
 	
@@ -156,6 +193,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
             //return Base64.encodeToString(value.getBytes(), Base64.DEFAULT);
         }
         catch (Exception e) {
+            CrashReportingManager.logException(e);
         }
         return value;
     }
@@ -179,54 +217,66 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
         changeActionBarColor(0);
     }
 
-	public void changeActionBarColor(int newColor) {
 
-		int color = newColor != 0 ? newColor : SettingsActivity.getActionBarColor(this);
+    @Override
+    public void startActivity(Intent intent) {
+        super.startActivityForResult(intent, FRAGMENT_OPEN);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if(requestCode == FRAGMENT_OPEN){
+            if(resultCode == RESULT_FIRST_USER){
+                recreate();
+            }
+        }
+    }
+
+    @Override
+    public void recreate() {
+        mRecreate = true;
+        super.recreate();
+    }
+
+    @Override
+    public String getTag() {
+        return TAG;
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        outState.putBoolean(EXTRA_RECREATE, true);
+        super.onSaveInstanceState(outState);
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle state) {
+        super.onRestoreInstanceState(state);
+        if(state.getBoolean(EXTRA_RECREATE)){
+            setResult(RESULT_FIRST_USER);
+        }
+    }
+
+    public void changeActionBarColor(int newColor) {
+
+		int color = newColor != 0 ? newColor : SettingsActivity.getPrimaryColor(this);
 		Drawable colorDrawable = new ColorDrawable(color);
-		Drawable bottomDrawable = getResources().getDrawable(R.drawable.actionbar_bottom);
-		LayerDrawable ld = new LayerDrawable(new Drawable[] { colorDrawable, bottomDrawable });
 
 		if (oldBackground == null) {
-			if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1) {
-				ld.setCallback(drawableCallback);
-			} else {
-				getSupportActionBar().setBackgroundDrawable(ld);
-			}
+            getSupportActionBar().setBackgroundDrawable(colorDrawable);
 
-		} else {
-			TransitionDrawable td = new TransitionDrawable(new Drawable[] { oldBackground, ld });
-			// workaround for broken ActionBarContainer drawable handling on
-			// pre-API 17 builds
-			// https://github.com/android/platform_frameworks_base/commit/a7cc06d82e45918c37429a59b14545c6a57db4e4
-			if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1) {
-				td.setCallback(drawableCallback);
-			} else {
-                getSupportActionBar().setBackgroundDrawable(td);
-			}
+        } else {
+			TransitionDrawable td = new TransitionDrawable(new Drawable[] { oldBackground, colorDrawable });
+            getSupportActionBar().setBackgroundDrawable(td);
 			td.startTransition(200);
 		}
 
-		oldBackground = ld;
-		
-		// http://stackoverflow.com/questions/11002691/actionbar-setbackgrounddrawable-nulling-background-from-thread-handler
-        getSupportActionBar().setDisplayShowTitleEnabled(false);
-        getSupportActionBar().setDisplayShowTitleEnabled(true);
+		oldBackground = colorDrawable;
 	}
-	
-	private Drawable.Callback drawableCallback = new Drawable.Callback() {
-		@Override
-		public void invalidateDrawable(Drawable who) {
-            getSupportActionBar().setBackgroundDrawable(who);
-		}
 
-		@Override
-		public void scheduleDrawable(Drawable who, Runnable what, long when) {
-			handler.postAtTime(what, when);
-		}
+	public static void logSettingEvent(String key){
+        AnalyticsManager.logEvent("settings_"+key.toLowerCase());
+    }
 
-		@Override
-		public void unscheduleDrawable(Drawable who, Runnable what) {
-			handler.removeCallbacks(what);
-		}
-	};
 }

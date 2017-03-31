@@ -17,21 +17,17 @@
 package dev.dworks.apps.anexplorer.receiver;
 
 import android.content.BroadcastReceiver;
-import android.content.ContentProviderClient;
 import android.content.Context;
 import android.content.Intent;
-import dev.dworks.apps.anexplorer.misc.ContentProviderClientCompat;
+
+import dev.dworks.apps.anexplorer.misc.RootsCache;
 import dev.dworks.apps.anexplorer.provider.ExternalStorageProvider;
+import dev.dworks.apps.anexplorer.provider.UsbStorageProvider;
 
 public class MountReceiver extends BroadcastReceiver {
 	@Override
 	public void onReceive(Context context, Intent intent) {
-    	final ContentProviderClient client = ContentProviderClientCompat.acquireUnstableContentProviderClient(context.getContentResolver(), 
-    			ExternalStorageProvider.AUTHORITY);
-		try {
-			((ExternalStorageProvider) client.getLocalContentProvider()).updateVolumes();
-		} finally {
-			ContentProviderClientCompat.releaseQuietly(client);
-		}
+		RootsCache.updateRoots(context, ExternalStorageProvider.AUTHORITY);
+		RootsCache.updateRoots(context, UsbStorageProvider.AUTHORITY);
 	}
 }

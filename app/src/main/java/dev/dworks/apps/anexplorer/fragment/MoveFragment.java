@@ -26,7 +26,6 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -35,6 +34,8 @@ import dev.dworks.apps.anexplorer.DocumentsActivity;
 import dev.dworks.apps.anexplorer.R;
 import dev.dworks.apps.anexplorer.misc.FileUtils;
 import dev.dworks.apps.anexplorer.model.DocumentInfo;
+import dev.dworks.apps.anexplorer.setting.SettingsActivity;
+import dev.dworks.apps.anexplorer.ui.MaterialProgressBar;
 
 /**
  * Display document title editor and save button.
@@ -46,7 +47,7 @@ public class MoveFragment extends Fragment implements OnClickListener{
 	private TextView mMoveInfo;
 	private TextView mRootInfo;
 	private ImageButton mSave;
-	private ProgressBar mProgress;
+	private MaterialProgressBar mProgress;
 
 	private ImageButton mCancel;
 	private ArrayList<DocumentInfo> docs;
@@ -91,6 +92,7 @@ public class MoveFragment extends Fragment implements OnClickListener{
 		//final Context context = inflater.getContext();
 
 		final View view = inflater.inflate(R.layout.fragment_move, container, false);
+		view.findViewById(R.id.background).setBackgroundColor(SettingsActivity.getPrimaryColor(getActivity()));
 
 		mCancel = (ImageButton) view.findViewById(android.R.id.button2);
 		mCancel.setOnClickListener(this);
@@ -105,7 +107,8 @@ public class MoveFragment extends Fragment implements OnClickListener{
 		mSave.setOnClickListener(this);
 		mSave.setEnabled(false);
 
-		mProgress = (ProgressBar) view.findViewById(android.R.id.progress);
+		mProgress = (MaterialProgressBar) view.findViewById(android.R.id.progress);
+		mProgress.setColor(SettingsActivity.getAccentColor());
 
 		return view;
 	}

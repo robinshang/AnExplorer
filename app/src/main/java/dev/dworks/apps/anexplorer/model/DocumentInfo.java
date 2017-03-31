@@ -35,7 +35,6 @@ import dev.dworks.apps.anexplorer.DocumentsApplication;
 import dev.dworks.apps.anexplorer.cursor.RootCursorWrapper;
 import dev.dworks.apps.anexplorer.libcore.io.IoUtils;
 import dev.dworks.apps.anexplorer.misc.ContentProviderClientCompat;
-import dev.dworks.apps.anexplorer.misc.MimePredicate;
 import dev.dworks.apps.anexplorer.model.DocumentsContract.Document;
 import dev.dworks.apps.anexplorer.provider.DocumentsProvider;
 
@@ -231,10 +230,6 @@ public class DocumentInfo implements Durable, Parcelable {
     public boolean isDirectory() {
         return Document.MIME_TYPE_DIR.equals(mimeType);
     }
-    
-    public boolean isZipFile() {
-        return MimePredicate.mimeMatches(MimePredicate.COMPRESSED_MIMES, mimeType);
-    }
 
     public boolean isGridPreferred() {
         return (flags & Document.FLAG_DIR_PREFERS_GRID) != 0;
@@ -243,9 +238,49 @@ public class DocumentInfo implements Durable, Parcelable {
     public boolean isDeleteSupported() {
         return (flags & Document.FLAG_SUPPORTS_DELETE) != 0;
     }
-    
-    public boolean isEditSupported() {
+
+    public boolean isMoveSupported() {
+        return (flags & Document.FLAG_SUPPORTS_MOVE) != 0;
+    }
+
+    public boolean isCopySupported() {
+        return (flags & Document.FLAG_SUPPORTS_COPY) != 0;
+    }
+
+    public boolean isRemoveSupported() {
+        return (flags & Document.FLAG_SUPPORTS_REMOVE) != 0;
+    }
+
+    public boolean isRenameSupported() {
+        return (flags & Document.FLAG_SUPPORTS_RENAME) != 0;
+    }
+
+    public boolean isArchiveSupported() {
+        return (flags & Document.FLAG_SUPPORTS_ARCHIVE) != 0;
+    }
+
+    public boolean isBookmarkSupported() {
+        return (flags & Document.FLAG_SUPPORTS_BOOKMARK) != 0;
+    }
+
+    public boolean isWriteSupported() {
         return (flags & Document.FLAG_SUPPORTS_EDIT) != 0;
+    }
+
+    public boolean isArchive() {
+        return (flags & Document.FLAG_ARCHIVE) != 0;
+    }
+
+    public boolean isPartial() {
+        return (flags & Document.FLAG_PARTIAL) != 0;
+    }
+
+    public boolean isContainer() {
+        return isDirectory() || isArchive();
+    }
+
+    public boolean isVirtualDocument() {
+        return (flags & Document.FLAG_VIRTUAL_DOCUMENT) != 0;
     }
 
     public boolean isGridTitlesHidden() {
@@ -278,6 +313,15 @@ public class DocumentInfo implements Durable, Parcelable {
     public static int getCursorInt(Cursor cursor, String columnName) {
         final int index = cursor.getColumnIndex(columnName);
         return (index != -1) ? cursor.getInt(index) : 0;
+    }
+
+
+    /**
+     * Missing or null values are returned as 0.
+     */
+    public static boolean getCursorBolean(Cursor cursor, String columnName) {
+        final int index = cursor.getColumnIndex(columnName);
+        return (index != -1) && cursor.getInt(index) == 1;
     }
 
     public static FileNotFoundException asFileNotFoundException(Throwable t)

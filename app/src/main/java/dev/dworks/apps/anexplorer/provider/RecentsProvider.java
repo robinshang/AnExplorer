@@ -29,15 +29,14 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.net.Uri;
 import android.os.Bundle;
+import android.support.v4.util.ArraySet;
 import android.text.format.DateUtils;
 import android.util.Log;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.Sets;
+import com.android.internal.util.Predicate;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Set;
 
 import dev.dworks.apps.anexplorer.BuildConfig;
 import dev.dworks.apps.anexplorer.libcore.io.IoUtils;
@@ -54,7 +53,7 @@ public class RecentsProvider extends ContentProvider {
 
     private static final long MAX_HISTORY_IN_MILLIS = 45 * DateUtils.DAY_IN_MILLIS;
 
-    private static final String AUTHORITY = BuildConfig.APPLICATION_ID + ".recents";
+    public static final String AUTHORITY = BuildConfig.APPLICATION_ID + ".recents";
 
     private static final UriMatcher sMatcher = new UriMatcher(UriMatcher.NO_MATCH);
 
@@ -193,7 +192,8 @@ public class RecentsProvider extends ContentProvider {
                 return db.query(TABLE_RESUME, projection, ResumeColumns.PACKAGE_NAME + "=?",
                         new String[] { packageName }, null, null, sortOrder);
             default:
-                throw new UnsupportedOperationException("Unsupported Uri " + uri);
+                return null;
+                //throw new UnsupportedOperationException("Unsupported Uri " + uri);
         }
     }
 
@@ -259,7 +259,7 @@ public class RecentsProvider extends ContentProvider {
     public Bundle call(String method, String arg, Bundle extras) {
         if (METHOD_PURGE.equals(method)) {
             // Purge references to unknown authorities
-            final Set<String> knownAuth = Sets.newHashSet(); 
+            final ArraySet<String> knownAuth = new ArraySet<>();
             List<ProviderInfo> providers = getContext().getPackageManager()
             	    .queryContentProviders(getContext().getPackageName(), getContext().getApplicationInfo().uid, 0);
             for (ProviderInfo providerInfo : providers) {
@@ -280,7 +280,7 @@ public class RecentsProvider extends ContentProvider {
             // Purge references to authorities in given package
             final Intent intent = new Intent(DocumentsContract.PROVIDER_INTERFACE);
             intent.setPackage(arg);
-            final Set<String> packageAuth = Sets.newHashSet();
+            final ArraySet<String> packageAuth = new ArraySet<>();
             List<ProviderInfo> providers = getContext().getPackageManager()
             	    .queryContentProviders(getContext().getPackageName(), getContext().getApplicationInfo().uid, 0);
             for (ProviderInfo providerInfo : providers) {

@@ -59,13 +59,14 @@
             android:singleLine="true"
             android:textAlignment="viewStart"
             android:textAppearance="@style/TextAppearance.AppCompat.Body1"
-            android:textColor="@color/primary_text_default_material_light" />
+            android:textColor="?android:attr/textColorPrimary" />
 
         <dev.dworks.apps.anexplorer.ui.NumberProgressBar
             android:id="@android:id/progress"
             android:layout_width="wrap_content"
             android:gravity="start"
             android:textAlignment="viewStart"
+            android:visibility="gone"
             android:layout_height="wrap_content" />
 
         <TextView
@@ -75,9 +76,10 @@
             android:ellipsize="end"
             android:gravity="start"
             android:singleLine="true"
+            android:visibility="gone"
             android:textAlignment="viewStart"
             android:textAppearance="@style/TextAppearance.AppCompat.Body1"
-            android:textColor="@color/primary_dark_material_light"
+            android:textColor="?android:attr/textColorSecondary"
             android:textSize="12sp" />
 
     </LinearLayout>

@@ -31,15 +31,15 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import dev.dworks.apps.anexplorer.root.Permissions;
-
 public class RootCommands {
 
     private static final String UNIX_ESCAPE_EXPRESSION = "(\\(|\\)|\\[|\\]|\\s|\'|\"|`|\\{|\\}|&|\\\\|\\?)";
+    private static SimpleDateFormat simpledateformat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
 
     private static String getCommandLineString(String input) {
         return input.replaceAll(UNIX_ESCAPE_EXPRESSION, "\\\\$1");
@@ -202,6 +202,30 @@ public class RootCommands {
         try {
             if (!readReadWriteFile())
                 RootTools.remount(path, "rw");
+
+            execute("mv " + getCommandLineString(file.getAbsolutePath()) + " "
+                    + getCommandLineString(newf.getAbsolutePath()));
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return false;
+    }
+
+    // path = currentDir
+    // oldName = currentDir + "/" + selected Item
+    // name = new name
+    public static boolean renameRootTarget(RootFile before, RootFile after) {
+        File file = new File(before.getParent() + File.separator + before.getName());
+        File newf = new File(after.getParent() + File.separator + after.getName());
+
+        if (after.getName().length() < 1)
+            return false;
+
+        try {
+            if (!readReadWriteFile())
+                RootTools.remount(before.getPath(), "rw");
 
             execute("mv " + getCommandLineString(file.getAbsolutePath()) + " "
                     + getCommandLineString(newf.getAbsolutePath()));
@@ -415,5 +439,15 @@ public class RootCommands {
         }
 
         return results;
+    }
+
+    public static long getTimeinMillis(String date){
+        long timeInMillis = 0;
+        try {
+            timeInMillis = simpledateformat.parse(date).getTime();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return timeInMillis;
     }
 }

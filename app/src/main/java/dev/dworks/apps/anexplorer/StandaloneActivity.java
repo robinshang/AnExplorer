@@ -148,6 +148,12 @@ public class StandaloneActivity extends BaseActivity {
             onCurrentDirectoryChanged(ANIM_NONE);
         }
     }
+
+    @Override
+    public String getTag() {
+        return null;
+    }
+
     private void buildDefaultState() {
         mState = new State();
         final Intent intent = getIntent();
@@ -369,7 +375,7 @@ public class StandaloneActivity extends BaseActivity {
             onBackPressed();
             return true;
         } else if (id == R.id.menu_create_dir) {
-            CreateDirectoryFragment.show(getFragmentManager());
+            CreateDirectoryFragment.show(getSupportFragmentManager());
             return true;
         } else if (id == R.id.menu_search) {
             return false;
@@ -395,21 +401,29 @@ public class StandaloneActivity extends BaseActivity {
 
     @Override
     public void onStateChanged() {
-        invalidateOptionsMenu();
+        supportInvalidateOptionsMenu();
     }
     /**
      * Set state sort order based on explicit user action.
      */
     private void setUserSortOrder(int sortOrder) {
         mState.userSortOrder = sortOrder;
-        DirectoryFragment.get(getFragmentManager()).onUserSortOrderChanged();
+        Fragment fragment = DirectoryFragment.get(getFragmentManager());
+        if(fragment instanceof DirectoryFragment) {
+            final DirectoryFragment directory = (DirectoryFragment) fragment;
+            directory.onUserSortOrderChanged();
+        }
     }
     /**
      * Set state mode based on explicit user action.
      */
     private void setUserMode(int mode) {
         mState.userMode = mode;
-        DirectoryFragment.get(getFragmentManager()).onUserModeChanged();
+        Fragment fragment = DirectoryFragment.get(getFragmentManager());
+        if(fragment instanceof DirectoryFragment) {
+            final DirectoryFragment directory = (DirectoryFragment) fragment;
+            directory.onUserModeChanged();
+        }
     }
     @Override
     public void setPending(boolean pending) {
@@ -513,7 +527,7 @@ public class StandaloneActivity extends BaseActivity {
         if (mState.stack.root != null) {
             return mState.stack.root;
         } else {
-            return mRoots.getRecentsRoot();
+            return mRoots.getHomeRoot();
         }
     }
 
@@ -608,7 +622,7 @@ public class StandaloneActivity extends BaseActivity {
             roots.onCurrentRootChanged();
         }
         updateActionBar();
-        invalidateOptionsMenu();
+        supportInvalidateOptionsMenu();
         dumpStack();
     }
     @Override

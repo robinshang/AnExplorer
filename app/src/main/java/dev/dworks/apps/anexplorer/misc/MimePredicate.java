@@ -16,7 +16,7 @@
 
 package dev.dworks.apps.anexplorer.misc;
 
-import com.google.common.base.Predicate;
+import com.android.internal.util.Predicate;
 
 import dev.dworks.apps.anexplorer.model.DocumentInfo;
 import dev.dworks.apps.anexplorer.model.DocumentsContract;
@@ -61,10 +61,7 @@ public class MimePredicate implements Predicate<DocumentInfo> {
         if (doc.isDirectory()) {
             return true;
         }
-        if (mimeMatches(mFilters, doc.mimeType)) {
-            return true;
-        }
-        return false;
+        return mimeMatches(mFilters, doc.mimeType);
     }
 
     public static boolean mimeMatches(String[] filters, String[] tests) {
